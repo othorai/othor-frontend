@@ -62,6 +62,12 @@ export function NarrativeCard({
     return text.slice(0, limit) + '...';
   };
 
+  // Extract context date from timePeriod
+  const getContext = () => {
+    const match = timePeriod.match(/\((.*?)\)/);
+    return match ? match[1] : '';
+  };
+
   return (
     <Card className="w-full mb-6">
       <CardContent className="pt-6">
@@ -71,14 +77,14 @@ export function NarrativeCard({
         </div>
         
         {/* Title */}
-        <h3 className="text-3xl font-medium text-gray-900 mb-3">
+        <h3 className="text-2xl font-medium text-gray-900 mb-3">
           {title}
         </h3>
 
         {/* Description */}
-        <p className="text-gray-600 text-lg mb-6">
+        <p className="text-gray-600 text-base mb-6">
           {showFullDescription ? content : truncateText(content, 300)}
-          {content.length > 300 && (
+          {content?.length > 300 && (
             <button
               onClick={() => setShowFullDescription(!showFullDescription)}
               className="ml-1 text-primary hover:text-primary-dark font-medium"
@@ -113,6 +119,8 @@ export function NarrativeCard({
             <NarrativeChart
               data={graphData[metrics[currentMetricIndex]]}
               title={formatMetricName(metrics[currentMetricIndex])}
+              timePeriod={timePeriod}
+              context={getContext()}
             />
           </div>
         )}

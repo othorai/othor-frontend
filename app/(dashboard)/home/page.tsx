@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { NarrativeCard } from '@/components/narratives/card';
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { API_URL } from '@/lib/config';
 
 export default function HomePage() {
   const [loading, setLoading] = useState(true);
@@ -14,27 +13,19 @@ export default function HomePage() {
   const router = useRouter();
   const { toast } = useToast();
 
-  useEffect(() => {
-    console.log('Component mounted, checking auth...');
-    fetchNarratives();
-  }, []);
-
   const fetchNarratives = async () => {
     try {
       const token = localStorage.getItem('authToken');
-      console.log('Auth Token exists:', !!token);
+      console.log('Token available:', !!token);
 
       if (!token) {
-        throw new Error('No auth token found');
+        console.log('No token found, redirecting to login');
+        router.push('/login');
+        return;
       }
 
-      console.log('Making request to:', '/api/narrative/feed');
-      console.log('Request headers:', {
-        'Authorization': `Bearer ${token.substring(0, 10)}...`,
-        'Accept': 'application/json'
-      });
-
       const response = await fetch('/api/narrative/feed', {
+        method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Accept': 'application/json',
@@ -42,45 +33,40 @@ export default function HomePage() {
       });
 
       console.log('Response status:', response.status);
-      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
 
-      const responseText = await response.text();
-      console.log('Raw response:', responseText);
-
-      let data;
-      try {
-        data = JSON.parse(responseText);
-        console.log('Parsed data:', data);
-      } catch (e) {
-        console.error('Failed to parse response:', e);
-        throw new Error('Invalid response format');
+      if (response.status === 401) {
+        console.log('Token invalid or expired');
+        localStorage.removeItem('authToken');
+        router.push('/login');
+        return;
       }
+
+      const data = await response.json();
+      console.log('Response data:', data);
 
       if (!response.ok) {
         throw new Error(data.error || 'Failed to fetch narratives');
       }
 
       if (data.articles && Array.isArray(data.articles)) {
-        console.log('Number of articles:', data.articles.length);
-        console.log('First article sample:', data.articles[0]);
         setFeedData(data.articles);
       } else {
-        throw new Error('Invalid data format received');
+        throw new Error('Invalid response format');
       }
     } catch (error) {
       console.error('Error fetching narratives:', error);
-      setError(error instanceof Error ? error.message : 'Failed to load narratives');
+      setError(error.message || 'Failed to load narratives');
       toast({
         variant: "destructive",
         title: "Error",
-        description: error instanceof Error ? error.message : 'Failed to load narratives',
+        description: error.message || 'Failed to load narratives'
       });
     } finally {
       setLoading(false);
     }
   };
 
-  // Add handleLike function
+  // Add the missing handleLike function
   const handleLike = async (articleId, liked) => {
     try {
       const token = localStorage.getItem('authToken');
@@ -88,8 +74,9 @@ export default function HomePage() {
         toast({
           variant: "destructive",
           title: "Error",
-          description: "Please login to like narratives",
+          description: "Please login to like narratives"
         });
+        router.push('/login');
         return;
       }
 
@@ -97,14 +84,21 @@ export default function HomePage() {
         method: liked ? 'POST' : 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
         },
       });
+
+      if (response.status === 401) {
+        localStorage.removeItem('authToken');
+        router.push('/login');
+        return;
+      }
 
       if (!response.ok) {
         throw new Error('Failed to update like status');
       }
 
-      // Update local state
+      // Update local state optimistically
       setFeedData(prevData =>
         prevData.map(article =>
           article.id === articleId ? { ...article, isLiked: liked } : article
@@ -121,10 +115,14 @@ export default function HomePage() {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to update like status",
+        description: "Failed to update like status"
       });
     }
   };
+
+  useEffect(() => {
+    fetchNarratives();
+  }, []);
 
   if (loading) {
     return (

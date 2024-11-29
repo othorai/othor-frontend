@@ -2,54 +2,44 @@ import { NextResponse } from 'next/server';
 import { API_URL } from '@/lib/config';
 
 export async function GET(request) {
-  console.log('API route called');
-  
   try {
-    // Log the API URL
-    console.log('Using API URL:', API_URL);
-
-    // Get and log the auth header
+    // Extract token from Authorization header
     const authHeader = request.headers.get('authorization');
-    console.log('Auth header:', authHeader ? 'Present' : 'Missing');
+    console.log('API Route - Auth header received:', authHeader ? 'Yes' : 'No');
 
-    if (!authHeader) {
-      console.log('No auth header found');
-      return NextResponse.json(
-        { error: 'No authorization token provided' },
-        { status: 401 }
-      );
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.log('API Route - Invalid auth header format');
+      return NextResponse.json({ error: 'Invalid authorization header' }, { status: 401 });
     }
 
-    console.log('Making request to backend');
+    // Forward the request to the backend
+    console.log('API Route - Forwarding request to:', `${API_URL}/narrative/feed`);
+    
     const response = await fetch(`${API_URL}/narrative/feed`, {
+      method: 'GET',
       headers: {
         'Authorization': authHeader,
-        'Accept': 'application/json'
-      }
+        'Accept': 'application/json',
+      },
     });
 
-    console.log('Backend response status:', response.status);
-
-    const data = await response.json();
-    console.log('Backend response data shape:', {
-      hasArticles: !!data.articles,
-      articleCount: data.articles?.length || 0
-    });
+    console.log('API Route - Backend response status:', response.status);
 
     if (!response.ok) {
-      console.log('Backend request failed:', response.status);
+      console.log('API Route - Backend request failed');
       return NextResponse.json(
-        { error: 'Failed to fetch narratives from backend' },
+        { error: 'Backend request failed' },
         { status: response.status }
       );
     }
 
-    console.log('Successfully returning data to client');
+    const data = await response.json();
     return NextResponse.json(data);
+
   } catch (error) {
-    console.error('API route error:', error);
+    console.error('API Route - Error:', error);
     return NextResponse.json(
-      { error: 'Server error' },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }

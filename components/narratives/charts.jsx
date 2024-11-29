@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useMemo } from 'react';
+import { format } from 'date-fns';
 import {
   LineChart,
   Line,
@@ -24,142 +25,191 @@ const formatValue = (value) => {
   return value.toFixed(2);
 };
 
-export function NarrativeChart({ data, title }) {
-  const chartData = [
-    { name: 'Previous', value: data.previous },
-    { name: 'Current', value: data.current }
-  ];
+export function NarrativeChart({ data, title, timePeriod }) {
+  // Memoize calculations to prevent unnecessary rerenders
+  const {
+    chartData,
+    percentageChange,
+    isPositive,
+    isValidData,
+    chartType
+  } = useMemo(() => {
+    // Calculate percentage change
+    const pctChange = data.change_percentage || ((data.current - data.previous) / data.previous) * 100;
+    const isPos = pctChange >= 0;
+    const isValid = !isNaN(pctChange) && isFinite(pctChange) && data.current !== undefined && data.previous !== undefined;
 
-  const colors = {
-    previous: '#FF9EB1',
-    current: '#86B6F6',
+    // Parse dates
+    const dateMatch = timePeriod?.match(/\((.*?)\)/);
+    const currentDate = dateMatch ? dateMatch[1] : 'Current';
+    let previousDate = 'Previous';
+
+    if (currentDate.match(/\d{2}-\d{2}-\d{4}/)) {
+      const [day, month, year] = currentDate.split('-');
+      const date = new Date(year, month - 1, day);
+      const prevDate = new Date(date);
+      prevDate.setDate(prevDate.getDate() - 1);
+      previousDate = format(prevDate, 'dd MMM yy');
+    }
+
+    // Determine chart type
+    let type = 'line'; // default
+    const metricName = title.toLowerCase();
+    
+    if (metricName.includes('ratio') || 
+        metricName.includes('index') || 
+        metricName.includes('percentage')) {
+      type = 'pie';
+    } else if (metricName.includes('cost') || 
+               metricName.includes('revenue') || 
+               metricName.includes('sales')) {
+      type = 'bar';
+    } else if (Math.abs(pctChange) > 20) {
+      type = 'area';
+    }
+
+    // Create chart data
+    const chartData = [
+      { name: `Previous (${previousDate})`, value: data.previous },
+      { name: `Current (${currentDate})`, value: data.current }
+    ];
+
+    return {
+      chartData,
+      percentageChange: pctChange,
+      isPositive: isPos,
+      isValidData: isValid,
+      chartType: type
+    };
+  }, [data, title, timePeriod]);
+
+  // Memoize colors and styles
+  const colors = useMemo(() => ({
     positive: '#4CAF50',
-    negative: '#FF5252'
-  };
+    negative: '#FF5252',
+    previous: '#FF9EB1',
+    current: '#86B6F6'
+  }), []);
 
-  // Calculate percentage change
-  const percentageChange = ((data.current - data.previous) / data.previous) * 100;
-  const isPositive = percentageChange >= 0;
+  const chartProps = useMemo(() => ({
+    width: "100%",
+    height: 300,
+    margin: { top: 20, right: 30, left: 30, bottom: 20 }
+  }), []);
 
-  // Get visualization type from data
-  const chartType = data.visualization?.type?.toLowerCase() || 'line';
+  const axisProps = useMemo(() => ({
+    xAxis: {
+      dataKey: "name",
+      angle: -15,
+      textAnchor: "end",
+      height: 60,
+      tick: { fontSize: 12 }
+    },
+    yAxis: {
+      tickFormatter: formatValue,
+      width: 80
+    }
+  }), []);
 
-  // Common tooltip styles
-  const tooltipStyle = {
+  const tooltipProps = useMemo(() => ({
+    formatter: (value) => [formatValue(value), 'Value'],
     contentStyle: {
       backgroundColor: 'white',
       border: '1px solid #ccc',
       borderRadius: '4px',
       padding: '8px'
     }
-  };
+  }), []);
 
-  const renderAreaChart = () => (
-    <ResponsiveContainer width="100%" height={300}>
-      <AreaChart data={chartData} margin={{ top: 20, right: 30, left: 30, bottom: 5 }}>
-        <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200" />
-        <XAxis dataKey="name" />
-        <YAxis tickFormatter={formatValue} />
-        <Tooltip 
-          formatter={(value) => [formatValue(value), 'Value']}
-          {...tooltipStyle}
-        />
-        <Area
-          type="monotone"
-          dataKey="value"
-          fill={isPositive ? colors.positive : colors.negative}
-          stroke={isPositive ? colors.positive : colors.negative}
-          fillOpacity={0.2}
-        />
-      </AreaChart>
-    </ResponsiveContainer>
-  );
-
-  const renderBarChart = () => (
-    <ResponsiveContainer width="100%" height={300}>
-      <BarChart data={chartData} margin={{ top: 20, right: 30, left: 30, bottom: 5 }}>
-        <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200" />
-        <XAxis dataKey="name" />
-        <YAxis tickFormatter={formatValue} />
-        <Tooltip 
-          formatter={(value) => [formatValue(value), 'Value']}
-          {...tooltipStyle}
-        />
-        <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-          {chartData.map((entry, index) => (
-            <Cell 
-              key={`cell-${index}`}
-              fill={index === 0 ? colors.previous : colors.current}
-            />
-          ))}
-        </Bar>
-      </BarChart>
-    </ResponsiveContainer>
-  );
-
-  const renderLineChart = () => (
-    <ResponsiveContainer width="100%" height={300}>
-      <LineChart data={chartData} margin={{ top: 20, right: 30, left: 30, bottom: 5 }}>
-        <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200" />
-        <XAxis dataKey="name" />
-        <YAxis tickFormatter={formatValue} />
-        <Tooltip 
-          formatter={(value) => [formatValue(value), 'Value']}
-          {...tooltipStyle}
-        />
-        <Line
-          type="monotone"
-          dataKey="value"
-          stroke={isPositive ? colors.positive : colors.negative}
-          strokeWidth={2}
-          dot={{ strokeWidth: 2, fill: '#fff' }}
-        />
-      </LineChart>
-    </ResponsiveContainer>
-  );
-
-  const renderPieChart = () => (
-    <ResponsiveContainer width="100%" height={300}>
-      <PieChart>
-        <Pie
-          data={chartData}
-          dataKey="value"
-          nameKey="name"
-          cx="50%"
-          cy="50%"
-          innerRadius={60}
-          outerRadius={80}
-          label={({ value }) => formatValue(value)}
-        >
-          {chartData.map((entry, index) => (
-            <Cell 
-              key={`cell-${index}`}
-              fill={index === 0 ? colors.previous : colors.current}
-            />
-          ))}
-        </Pie>
-        <Tooltip 
-          formatter={(value) => [formatValue(value), 'Value']}
-          {...tooltipStyle}
-        />
-        <Legend />
-      </PieChart>
-    </ResponsiveContainer>
-  );
-
-  // Render chart based on type
   const renderChart = () => {
-    console.log('Rendering chart type:', chartType);
+    console.log(`Rendering ${chartType} chart for ${title} (${isValidData ? percentageChange.toFixed(2) + '%' : 'N/A'} change)`);
+
     switch (chartType) {
-      case 'area':
-        return renderAreaChart();
-      case 'bar':
-        return renderBarChart();
       case 'pie':
-        return renderPieChart();
+        return (
+          <ResponsiveContainer {...chartProps}>
+            <PieChart>
+              <Pie
+                data={chartData}
+                dataKey="value"
+                nameKey="name"
+                cx="50%"
+                cy="50%"
+                innerRadius={60}
+                outerRadius={80}
+                label={({ value }) => formatValue(value)}
+              >
+                {chartData.map((entry, index) => (
+                  <Cell 
+                    key={`cell-${index}`}
+                    fill={index === 0 ? colors.previous : colors.current}
+                  />
+                ))}
+              </Pie>
+              <Tooltip {...tooltipProps} />
+              <Legend />
+            </PieChart>
+          </ResponsiveContainer>
+        );
+
+      case 'bar':
+        return (
+          <ResponsiveContainer {...chartProps}>
+            <BarChart data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200" />
+              <XAxis {...axisProps.xAxis} />
+              <YAxis {...axisProps.yAxis} />
+              <Tooltip {...tooltipProps} />
+              <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                {chartData.map((entry, index) => (
+                  <Cell 
+                    key={`cell-${index}`}
+                    fill={index === 0 ? colors.previous : colors.current}
+                  />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        );
+
+      case 'area':
+        return (
+          <ResponsiveContainer {...chartProps}>
+            <AreaChart data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200" />
+              <XAxis {...axisProps.xAxis} />
+              <YAxis {...axisProps.yAxis} />
+              <Tooltip {...tooltipProps} />
+              <Area
+                type="monotone"
+                dataKey="value"
+                fill={isPositive ? colors.positive : colors.negative}
+                stroke={isPositive ? colors.positive : colors.negative}
+                fillOpacity={0.2}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        );
+
       case 'line':
       default:
-        return renderLineChart();
+        return (
+          <ResponsiveContainer {...chartProps}>
+            <LineChart data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200" />
+              <XAxis {...axisProps.xAxis} />
+              <YAxis {...axisProps.yAxis} />
+              <Tooltip {...tooltipProps} />
+              <Line
+                type="monotone"
+                dataKey="value"
+                stroke={isPositive ? colors.positive : colors.negative}
+                strokeWidth={2}
+                dot={{ strokeWidth: 2, fill: '#fff' }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        );
     }
   };
 
@@ -167,14 +217,18 @@ export function NarrativeChart({ data, title }) {
     <div className="w-full bg-white rounded-lg p-4 shadow-sm">
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-lg font-medium">{title}</h3>
-        <div className={`text-sm ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
-          {isPositive ? '↑' : '↓'} {Math.abs(percentageChange).toFixed(1)}%
-        </div>
+        {isValidData && (
+          <div className={`text-sm ${isPositive ? 'text-green-600' : 'text-red-600'} font-medium`}>
+            {isPositive ? '↑' : '↓'} {Math.abs(percentageChange).toFixed(1)}%
+          </div>
+        )}
       </div>
       {renderChart()}
-      <div className="mt-4 text-sm text-gray-500 text-center">
-        {isPositive ? 'Increased' : 'Decreased'} by {Math.abs(percentageChange).toFixed(1)}% from previous period
-      </div>
+      {isValidData && (
+        <div className="mt-4 text-sm text-gray-500 text-center">
+          {isPositive ? 'Increased' : 'Decreased'} by {Math.abs(percentageChange).toFixed(1)}% from previous period
+        </div>
+      )}
     </div>
   );
 }
