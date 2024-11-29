@@ -5,33 +5,35 @@ import { useRouter } from 'next/navigation';
 import { NarrativeCard } from '@/components/narratives/card';
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-
-interface Article {
-  id: string;
-  title: string;
-  content: string;
-  graph_data: Record<string, any>;
-  source_info: any;
-  category: string;
-  time_period: string;
-  isLiked: boolean;
-}
+import { API_URL } from '@/lib/config';
 
 export default function HomePage() {
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [feedData, setFeedData] = useState<Article[]>([]);
+  const [error, setError] = useState(null);
+  const [feedData, setFeedData] = useState([]);
   const router = useRouter();
   const { toast } = useToast();
+
+  useEffect(() => {
+    console.log('Component mounted, checking auth...');
+    fetchNarratives();
+  }, []);
 
   const fetchNarratives = async () => {
     try {
       const token = localStorage.getItem('authToken');
+      console.log('Auth Token exists:', !!token);
+
       if (!token) {
         throw new Error('No auth token found');
       }
 
-      console.log('Fetching narratives...');
+      console.log('Making request to:', '/api/narrative/feed');
+      console.log('Request headers:', {
+        'Authorization': `Bearer ${token.substring(0, 10)}...`,
+        'Accept': 'application/json'
+      });
+
       const response = await fetch('/api/narrative/feed', {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -39,23 +41,30 @@ export default function HomePage() {
         },
       });
 
-      if (!response.ok) {
-        if (response.status === 401) {
-          // Token expired or invalid
-          localStorage.removeItem('authToken');
-          router.push('/login');
-          throw new Error('Session expired. Please login again.');
-        }
-        throw new Error('Failed to fetch narratives');
+      console.log('Response status:', response.status);
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+
+      const responseText = await response.text();
+      console.log('Raw response:', responseText);
+
+      let data;
+      try {
+        data = JSON.parse(responseText);
+        console.log('Parsed data:', data);
+      } catch (e) {
+        console.error('Failed to parse response:', e);
+        throw new Error('Invalid response format');
       }
 
-      const data = await response.json();
-      console.log('Narratives response:', data);
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fetch narratives');
+      }
 
       if (data.articles && Array.isArray(data.articles)) {
+        console.log('Number of articles:', data.articles.length);
+        console.log('First article sample:', data.articles[0]);
         setFeedData(data.articles);
       } else {
-        console.error('Invalid data format:', data);
         throw new Error('Invalid data format received');
       }
     } catch (error) {
@@ -71,15 +80,17 @@ export default function HomePage() {
     }
   };
 
-  useEffect(() => {
-    fetchNarratives();
-  }, []);
-
-  const handleLike = async (articleId: string, liked: boolean) => {
+  // Add handleLike function
+  const handleLike = async (articleId, liked) => {
     try {
       const token = localStorage.getItem('authToken');
       if (!token) {
-        throw new Error('No auth token found');
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Please login to like narratives",
+        });
+        return;
       }
 
       const response = await fetch(`/api/narrative/${liked ? 'like' : 'unlike'}/${articleId}`, {
@@ -93,11 +104,18 @@ export default function HomePage() {
         throw new Error('Failed to update like status');
       }
 
+      // Update local state
       setFeedData(prevData =>
         prevData.map(article =>
           article.id === articleId ? { ...article, isLiked: liked } : article
         )
       );
+
+      toast({
+        title: liked ? "Narrative liked" : "Narrative unliked",
+        description: liked ? "Added to your likes" : "Removed from your likes",
+      });
+
     } catch (error) {
       console.error('Error updating like status:', error);
       toast({
