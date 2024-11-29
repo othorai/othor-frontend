@@ -5,13 +5,39 @@ import { useRouter } from 'next/navigation';
 import { NarrativeCard } from '@/components/narratives/card';
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
+import { format } from 'date-fns';
+
+interface Article {
+  id: string;
+  title: string;
+  content: string;
+  graph_data: Record<string, any>;
+  source_info: any;
+  category: string;
+  time_period: string;
+  isLiked: boolean;
+}
 
 export default function HomePage() {
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [feedData, setFeedData] = useState([]);
+  const [error, setError] = useState<string | null>(null);
+  const [feedData, setFeedData] = useState<Article[]>([]);
+  const [username, setUsername] = useState('');
   const router = useRouter();
   const { toast } = useToast();
+
+  // Format today's date
+  const today = new Date();
+  const formattedDate = format(today, "dd MMM yyyy EEEE");
+
+  useEffect(() => {
+    // Get username from localStorage
+    const email = localStorage.getItem('savedEmail');
+    if (email) {
+      const name = email.split('@')[0];
+      setUsername(name.charAt(0).toUpperCase() + name.slice(1));
+    }
+  }, []);
 
   const fetchNarratives = async () => {
     try {
@@ -55,19 +81,22 @@ export default function HomePage() {
       }
     } catch (error) {
       console.error('Error fetching narratives:', error);
-      setError(error.message || 'Failed to load narratives');
+      setError(error instanceof Error ? error.message : 'Failed to load narratives');
       toast({
         variant: "destructive",
         title: "Error",
-        description: error.message || 'Failed to load narratives'
+        description: error instanceof Error ? error.message : 'Failed to load narratives'
       });
     } finally {
       setLoading(false);
     }
   };
 
-  // Add the missing handleLike function
-  const handleLike = async (articleId, liked) => {
+  useEffect(() => {
+    fetchNarratives();
+  }, []);
+
+  const handleLike = async (articleId: string, liked: boolean) => {
     try {
       const token = localStorage.getItem('authToken');
       if (!token) {
@@ -98,7 +127,6 @@ export default function HomePage() {
         throw new Error('Failed to update like status');
       }
 
-      // Update local state optimistically
       setFeedData(prevData =>
         prevData.map(article =>
           article.id === articleId ? { ...article, isLiked: liked } : article
@@ -119,10 +147,6 @@ export default function HomePage() {
       });
     }
   };
-
-  useEffect(() => {
-    fetchNarratives();
-  }, []);
 
   if (loading) {
     return (
@@ -152,7 +176,18 @@ export default function HomePage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
+    <div className="container mx-auto px-2 py-8 max-w-4xl">
+      {/* Welcome Header */}
+      <div className="mb-8">
+        <h1 className="text-2xl px-1 font-semibold text-gray-900 mb-2">
+          Welcome{username ? `, ${username}` : ''}
+        </h1>
+        <p className="text-xl px-1 text-gray-600">
+          Today is {formattedDate}
+        </p>
+      </div>
+
+      {/* Narratives */}
       <div className="space-y-6">
         {feedData.length > 0 ? (
           feedData.map((article) => (

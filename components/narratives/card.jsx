@@ -1,34 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { NarrativeChart } from './charts';
 import { Heart, Download, Info } from 'lucide-react';
-
-// Utility function to format the time period
-const formatTimePeriod = (timePeriod) => {
-  // Extract type (daily/weekly) and date from the format "daily (29-11-2024)" or "weekly (Week 5)"
-  const match = timePeriod.match(/(daily|weekly)\s*\((.*?)\)/i);
-  
-  if (!match) return timePeriod;
-  
-  const [, type, period] = match;
-  
-  if (type.toLowerCase() === 'daily') {
-    // Parse the date for daily reports
-    const [day, month, year] = period.split('-');
-    const date = new Date(year, month - 1, day);
-    return `Daily Report - ${date.getDate()} ${date.toLocaleString('default', { month: 'short' })} ${year}`;
-  }
-  
-  if (type.toLowerCase() === 'weekly') {
-    // For weekly reports, use current month
-    const currentDate = new Date();
-    const month = currentDate.toLocaleString('default', { month: 'short' });
-    const weekNumber = period.replace('Week ', '');
-    return `Weekly Report - Week ${weekNumber} of ${month}`;
-  }
-  
-  return timePeriod;
-};
+import { useToast } from "@/hooks/use-toast";
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 export function NarrativeCard({
   title,
@@ -43,6 +20,9 @@ export function NarrativeCard({
 }) {
   const [showFullDescription, setShowFullDescription] = useState(false);
   const [currentMetricIndex, setCurrentMetricIndex] = useState(0);
+  const [downloading, setDownloading] = useState(false);
+  const chartRef = useRef(null);
+  const { toast } = useToast();
 
   const formatMetricName = (metric) => {
     return metric
@@ -62,10 +42,136 @@ export function NarrativeCard({
     return text.slice(0, limit) + '...';
   };
 
-  // Extract context date from timePeriod
-  const getContext = () => {
-    const match = timePeriod.match(/\((.*?)\)/);
-    return match ? match[1] : '';
+  const formatTimePeriod = (timePeriod) => {
+    const match = timePeriod?.match(/(daily|weekly)\s*\((.*?)\)/i);
+    if (!match) return timePeriod;
+    
+    const [, type, period] = match;
+    
+    if (type.toLowerCase() === 'daily') {
+      const [day, month, year] = period.split('-');
+      const date = new Date(year, month - 1, day);
+      return `Daily Report - ${date.getDate()} ${date.toLocaleString('default', { month: 'short' })} ${year}`;
+    }
+    
+    if (type.toLowerCase() === 'weekly') {
+      const currentDate = new Date();
+      const month = currentDate.toLocaleString('default', { month: 'short' });
+      const weekNumber = period.replace('Week ', '');
+      return `Weekly Report - Week ${weekNumber} of ${month}`;
+    }
+    
+    return timePeriod;
+  };
+
+  const handleDownload = async () => {
+    try {
+      setDownloading(true);
+      
+      // Create PDF document
+      const pdf = new jsPDF();
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      let yOffset = 20;
+  
+      // Add title
+      pdf.setFontSize(16);
+      pdf.text(title, 20, yOffset);
+      yOffset += 15;
+  
+      // Add date
+      pdf.setFontSize(12);
+      pdf.setTextColor(100);
+      pdf.text(formatTimePeriod(timePeriod), 20, yOffset);
+      yOffset += 10;
+  
+      // Add content
+      pdf.setFontSize(12);
+      pdf.setTextColor(0);
+      const contentLines = pdf.splitTextToSize(content, pageWidth - 40);
+      pdf.text(contentLines, 20, yOffset);
+      yOffset += (contentLines.length * 7) + 15;
+  
+      // Add metrics
+      if (metrics[currentMetricIndex]) {
+        const currentMetric = metrics[currentMetricIndex];
+        const metricData = graphData[currentMetric];
+  
+        // Add metric title
+        pdf.setFontSize(14);
+        pdf.text(formatMetricName(currentMetric), 20, yOffset);
+        yOffset += 10;
+  
+        // Add metric values in a table
+        const tableData = [
+          ['', 'Previous', 'Current', 'Change'],
+          [
+            formatMetricName(currentMetric),
+            metricData.previous.toFixed(2),
+            metricData.current.toFixed(2),
+            `${metricData.change_percentage >= 0 ? '+' : ''}${metricData.change_percentage.toFixed(2)}%`
+          ]
+        ];
+  
+        pdf.autoTable({
+          startY: yOffset,
+          head: [tableData[0]],
+          body: [tableData[1]],
+          theme: 'grid',
+          styles: {
+            fontSize: 10,
+            cellPadding: 5
+          },
+          headStyles: {
+            fillColor: [145, 0, 189], // Your primary color
+            textColor: 255
+          }
+        });
+        yOffset = pdf.lastAutoTable.finalY + 15;
+      }
+  
+      // Add chart if exists
+      if (chartRef.current) {
+        try {
+          const canvas = await html2canvas(chartRef.current, {
+            scale: 2,
+            backgroundColor: '#ffffff'
+          });
+          const chartImage = canvas.toDataURL('image/png');
+          
+          // Calculate dimensions to fit chart
+          const imgWidth = pageWidth - 40;
+          const imgHeight = (canvas.height * imgWidth) / canvas.width;
+  
+          // Add new page if chart doesn't fit
+          if (yOffset + imgHeight > pageHeight) {
+            pdf.addPage();
+            yOffset = 20;
+          }
+  
+          pdf.addImage(chartImage, 'PNG', 20, yOffset, imgWidth, imgHeight);
+        } catch (error) {
+          console.error('Failed to capture chart:', error);
+        }
+      }
+  
+      // Save the PDF
+      pdf.save(`narrative-${articleId}.pdf`);
+  
+      toast({
+        title: "Success",
+        description: "PDF generated successfully"
+      });
+    } catch (error) {
+      console.error('PDF generation error:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to generate PDF"
+      });
+    } finally {
+      setDownloading(false);
+    }
   };
 
   return (
@@ -115,12 +221,11 @@ export function NarrativeCard({
 
         {/* Chart */}
         {metrics[currentMetricIndex] && (
-          <div className="mt-4">
+          <div ref={chartRef} className="mt-4">
             <NarrativeChart
               data={graphData[metrics[currentMetricIndex]]}
               title={formatMetricName(metrics[currentMetricIndex])}
               timePeriod={timePeriod}
-              context={getContext()}
             />
           </div>
         )}
@@ -137,10 +242,23 @@ export function NarrativeCard({
               <Heart className={isLiked ? 'fill-current' : ''} size={18} />
               <span className="text-sm">{isLiked ? 'Liked' : 'Like'}</span>
             </button>
-            <button className="flex items-center gap-2 text-gray-600 hover:text-gray-800">
-              <Download size={18} />
-              <span className="text-sm">PDF</span>
-            </button>
+            <button 
+  onClick={handleDownload}
+  disabled={downloading}
+  className="flex items-center gap-2 text-gray-600 hover:text-gray-800 disabled:opacity-50"
+>
+  {downloading ? (
+    <>
+      <div className="animate-spin h-4 w-4 border-2 border-gray-500 border-t-transparent rounded-full" />
+      <span className="text-sm">Generating PDF...</span>
+    </>
+  ) : (
+    <>
+      <Download size={18} />
+      <span className="text-sm">PDF</span>
+    </>
+  )}
+</button>
             <button className="text-gray-600 hover:text-gray-800">
               <Info size={18} />
             </button>
