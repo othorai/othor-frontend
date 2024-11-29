@@ -118,7 +118,7 @@ export function NarrativeCard({
         )}
 
         {/* Card Actions */}
-        <div className="flex items-center justify-between mt-6 pt-4 border-t">
+        <div className="flex items-center justify-between mt-6 pt-4">
           <div className="flex items-center gap-4">
             <button
               onClick={() => onLike(articleId, !isLiked)}

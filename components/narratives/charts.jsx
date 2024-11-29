@@ -1,42 +1,30 @@
 import React from 'react';
 import {
-  BarChart,
-  Bar,
   LineChart,
   Line,
+  BarChart,
+  Bar,
+  AreaChart,
+  Area,
   PieChart,
   Pie,
-  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend
+  Legend,
+  Cell
 } from 'recharts';
 
-/**
- * @param {number} value
- * @returns {string}
- */
 const formatValue = (value) => {
+  if (!value && value !== 0) return '';
   if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
   if (value >= 1000) return `${(value / 1000).toFixed(1)}k`;
   return value.toFixed(2);
 };
 
-/**
- * @param {Object} props
- * @param {Object} props.data
- * @param {number} props.data.current
- * @param {number} props.data.previous
- * @param {number} [props.data.change_percentage]
- * @param {Object} [props.data.visualization]
- * @param {('line'|'bar'|'pie'|'area')} [props.data.visualization.type]
- * @param {string} props.title
- */
 export function NarrativeChart({ data, title }) {
-  // Transform data for recharts
   const chartData = [
     { name: 'Previous', value: data.previous },
     { name: 'Current', value: data.current }
@@ -53,23 +41,49 @@ export function NarrativeChart({ data, title }) {
   const percentageChange = ((data.current - data.previous) / data.previous) * 100;
   const isPositive = percentageChange >= 0;
 
-  // Determine chart type based on visualization type or data characteristics
-  const chartType = data.visualization?.type || 
-    (Math.abs(percentageChange) > 50 ? 'pie' : 'bar');
+  // Get visualization type from data
+  const chartType = data.visualization?.type?.toLowerCase() || 'line';
+
+  // Common tooltip styles
+  const tooltipStyle = {
+    contentStyle: {
+      backgroundColor: 'white',
+      border: '1px solid #ccc',
+      borderRadius: '4px',
+      padding: '8px'
+    }
+  };
+
+  const renderAreaChart = () => (
+    <ResponsiveContainer width="100%" height={300}>
+      <AreaChart data={chartData} margin={{ top: 20, right: 30, left: 30, bottom: 5 }}>
+        <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200" />
+        <XAxis dataKey="name" />
+        <YAxis tickFormatter={formatValue} />
+        <Tooltip 
+          formatter={(value) => [formatValue(value), 'Value']}
+          {...tooltipStyle}
+        />
+        <Area
+          type="monotone"
+          dataKey="value"
+          fill={isPositive ? colors.positive : colors.negative}
+          stroke={isPositive ? colors.positive : colors.negative}
+          fillOpacity={0.2}
+        />
+      </AreaChart>
+    </ResponsiveContainer>
+  );
 
   const renderBarChart = () => (
     <ResponsiveContainer width="100%" height={300}>
       <BarChart data={chartData} margin={{ top: 20, right: 30, left: 30, bottom: 5 }}>
-        <CartesianGrid strokeDasharray="3 3" />
+        <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200" />
         <XAxis dataKey="name" />
         <YAxis tickFormatter={formatValue} />
-        <Tooltip
+        <Tooltip 
           formatter={(value) => [formatValue(value), 'Value']}
-          contentStyle={{
-            backgroundColor: 'white',
-            border: '1px solid #ccc',
-            borderRadius: '4px'
-          }}
+          {...tooltipStyle}
         />
         <Bar dataKey="value" radius={[4, 4, 0, 0]}>
           {chartData.map((entry, index) => (
@@ -86,23 +100,19 @@ export function NarrativeChart({ data, title }) {
   const renderLineChart = () => (
     <ResponsiveContainer width="100%" height={300}>
       <LineChart data={chartData} margin={{ top: 20, right: 30, left: 30, bottom: 5 }}>
-        <CartesianGrid strokeDasharray="3 3" />
+        <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200" />
         <XAxis dataKey="name" />
         <YAxis tickFormatter={formatValue} />
-        <Tooltip
+        <Tooltip 
           formatter={(value) => [formatValue(value), 'Value']}
-          contentStyle={{
-            backgroundColor: 'white',
-            border: '1px solid #ccc',
-            borderRadius: '4px'
-          }}
+          {...tooltipStyle}
         />
         <Line
           type="monotone"
           dataKey="value"
           stroke={isPositive ? colors.positive : colors.negative}
           strokeWidth={2}
-          dot={{ strokeWidth: 2, fill: 'white' }}
+          dot={{ strokeWidth: 2, fill: '#fff' }}
         />
       </LineChart>
     </ResponsiveContainer>
@@ -128,29 +138,28 @@ export function NarrativeChart({ data, title }) {
             />
           ))}
         </Pie>
-        <Tooltip
+        <Tooltip 
           formatter={(value) => [formatValue(value), 'Value']}
-          contentStyle={{
-            backgroundColor: 'white',
-            border: '1px solid #ccc',
-            borderRadius: '4px'
-          }}
+          {...tooltipStyle}
         />
         <Legend />
       </PieChart>
     </ResponsiveContainer>
   );
 
-  // Render the appropriate chart based on type
+  // Render chart based on type
   const renderChart = () => {
+    console.log('Rendering chart type:', chartType);
     switch (chartType) {
+      case 'area':
+        return renderAreaChart();
+      case 'bar':
+        return renderBarChart();
       case 'pie':
         return renderPieChart();
       case 'line':
-        return renderLineChart();
-      case 'bar':
       default:
-        return renderBarChart();
+        return renderLineChart();
     }
   };
 
