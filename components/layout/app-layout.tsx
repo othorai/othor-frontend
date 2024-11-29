@@ -1,22 +1,18 @@
+// components/layout/app-layout.tsx
 'use client';
 
-import { NavContent } from './nav-content';
-import React, { useState } from 'react';
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { useState } from 'react';
+import Link from 'next/link';
+import { useRouter, usePathname } from 'next/navigation';
+import { Button } from '@/components/ui/button';
 import { 
   Home, 
-  MessageSquare,
-  BarChart2,
+  MessageSquare, 
+  BarChart2, 
   Settings,
   Menu,
-  ChevronLeft,
-  ChevronRight
+  X
 } from 'lucide-react';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
 const navigation = [
   { name: 'Home', href: '/home', icon: Home },
@@ -25,79 +21,77 @@ const navigation = [
   { name: 'Settings', href: '/settings', icon: Settings },
 ];
 
-export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const [isCollapsed, setIsCollapsed] = useState(false);
-  const [isRightPanelOpen, setIsRightPanelOpen] = useState(true);
-  const [isMobile, setIsMobile] = React.useState(false);
+export function AppLayout({ children }: { children: React.ReactNode }) {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const pathname = usePathname();
-
-  React.useEffect(() => {
-    const checkWindowSize = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    
-    checkWindowSize();
-    window.addEventListener('resize', checkWindowSize);
-    return () => window.removeEventListener('resize', checkWindowSize);
-  }, []);
+  const router = useRouter();
 
   return (
-    <div className="flex min-h-screen bg-background">
-      {isMobile ? (
-        <Sheet>
-          <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" className="md:hidden fixed top-4 left-4 z-50">
-              <Menu className="h-5 w-5" />
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="left" className="p-0 bg-gradient-to-b from-[#c000fa] to-[#9100bd]">
-            <NavContent isCollapsed={false} pathname={pathname} />
-          </SheetContent>
-        </Sheet>
-      ) : (
-        <div
-          className={cn(
-            "h-screen bg-gradient-to-b from-[#c000fa] to-[#9100bd] border-r transition-all duration-300",
-            isCollapsed ? "w-16" : "w-64"
-          )}
-        >
-          <div className="h-16 px-3 flex items-center justify-between border-b border-white/10">
-            <div className="flex items-center">
-              <img 
-                src="/images/full-logo-othor.png" 
-                alt="Othor AI"
-                className={cn(
-                  "transition-all duration-300",
-                  isCollapsed ? "w-8" : "w-32"
-                )}
-              />
-            </div>
-            <Button 
-              variant="ghost" 
+    <div className="flex h-screen bg-gray-50">
+      {/* Sidebar */}
+      <div className={`
+        fixed inset-y-0 left-0 z-50 w-64 bg-white transform 
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+        lg:relative lg:translate-x-0 transition-transform duration-200 ease-in-out
+      `}>
+        <div className="h-16 flex items-center justify-between px-4 border-b">
+          <img
+            src="/images/othor-logo.png"
+            alt="Othor AI"
+            className="h-8"
+          />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="lg:hidden"
+            onClick={() => setSidebarOpen(false)}
+          >
+            <X className="h-6 w-6" />
+          </Button>
+        </div>
+
+        <nav className="p-4 space-y-2">
+          {navigation.map((item) => {
+            const isActive = pathname === item.href;
+            return (
+              <Link
+                key={item.name}
+                href={item.href}
+                className={`
+                  flex items-center px-4 py-2 rounded-lg text-sm font-medium
+                  ${isActive 
+                    ? 'bg-primary text-white' 
+                    : 'text-gray-600 hover:bg-gray-100'
+                  }
+                `}
+              >
+                <item.icon className="mr-3 h-5 w-5" />
+                {item.name}
+              </Link>
+            );
+          })}
+        </nav>
+      </div>
+
+      {/* Main content */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <header className="h-16 border-b bg-white">
+          <div className="h-full px-4 flex items-center justify-between">
+            <Button
+              variant="ghost"
               size="icon"
-              onClick={() => setIsCollapsed(!isCollapsed)}
-              className="text-white hover:bg-white/10"
+              className="lg:hidden"
+              onClick={() => setSidebarOpen(true)}
             >
-              {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+              <Menu className="h-6 w-6" />
             </Button>
           </div>
-          <NavContent isCollapsed={isCollapsed} pathname={pathname} />
-        </div>
-      )}
+        </header>
 
-      <main className="flex-1 overflow-y-auto bg-muted/20">
-        <div className="container mx-auto py-6">
+        <main className="flex-1 overflow-auto bg-gray-50">
           {children}
-        </div>
-      </main>
-
-      {isRightPanelOpen && (
-        <div className="w-80 border-l bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <ScrollArea className="h-full">
-            {/* Right panel content */}
-          </ScrollArea>
-        </div>
-      )}
+        </main>
+      </div>
     </div>
   );
 }

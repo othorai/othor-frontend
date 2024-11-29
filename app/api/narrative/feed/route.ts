@@ -1,44 +1,41 @@
-// app/api/narrative/feed/route.ts
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
+import { API_URL } from '@/lib/config';
 
-const API_URL = process.env.API_URL || 'http://backend-authorization-gatewa-alb-1180704430.eu-north-1.elb.amazonaws.com';
-
-export async function GET(req: NextRequest) {
+export async function GET(request: Request) {
   try {
-    const token = req.headers.get('Authorization');
-    const { searchParams } = new URL(req.url);
-    const date = searchParams.get('date');
-
-    if (!token) {
+    // Get token from request header
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader) {
       return NextResponse.json(
-        { message: 'Unauthorized' },
+        { error: 'No authorization token provided' },
         { status: 401 }
       );
     }
 
-    const response = await fetch(
-      `${API_URL}/narrative/feed${date ? `?date=${date}` : ''}`,
-      {
-        headers: {
-          'Authorization': token,
-          'Accept': 'application/json',
-        },
+    console.log('Fetching narratives from API...');
+    const response = await fetch(`${API_URL}/narrative/feed`, {
+      headers: {
+        'Authorization': authHeader,
+        'Accept': 'application/json'
       }
-    );
+    });
 
     if (!response.ok) {
-      const error = await response.json();
+      console.error('API response not ok:', response.status);
       return NextResponse.json(
-        { message: error.detail || 'Failed to fetch narratives' },
+        { error: 'Failed to fetch narratives' },
         { status: response.status }
       );
     }
 
     const data = await response.json();
+    console.log('API response received');
+
     return NextResponse.json(data);
   } catch (error) {
+    console.error('Error in narrative feed:', error);
     return NextResponse.json(
-      { message: 'Internal server error' },
+      { error: 'Failed to fetch narratives' },
       { status: 500 }
     );
   }

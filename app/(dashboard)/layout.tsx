@@ -3,7 +3,8 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import AppLayout from '@/components/layout/app-layout';
+import { getAuthToken } from '@/lib/auth';
+import { AppLayout } from '@/components/layout/app-layout';
 
 export default function DashboardLayout({
   children,
@@ -13,11 +14,14 @@ export default function DashboardLayout({
   const router = useRouter();
 
   useEffect(() => {
-    // Check for authentication
-    const token = localStorage.getItem('authToken');
-    if (!token) {
-      router.push('/login');
-    }
+    const checkAuth = async () => {
+      const token = getAuthToken();
+      if (!token) {
+        router.push('/login');
+      }
+    };
+
+    checkAuth();
   }, [router]);
 
   return <AppLayout>{children}</AppLayout>;
