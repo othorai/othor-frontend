@@ -4,7 +4,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { LoadingQuotes } from '@/components/loading-quotes';
 import { Card } from "@/components/ui/card";
 import { MetricChart } from '@/components/charts/metric-chart';

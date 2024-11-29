@@ -16,6 +16,57 @@ export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
 
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    console.log('Login attempt started:', { email }); // Debug log
+    
+    if (isLoading || !validateForm()) {
+      console.log('Validation failed or already loading'); // Debug log
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      console.log('Making login request...'); // Debug log
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          password,
+        }),
+      });
+
+      console.log('Login response status:', response.status); // Debug log
+
+      const data = await response.json();
+      console.log('Login response:', data); // Debug log
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Login failed');
+      }
+
+      console.log('Login successful, saving auth state...'); // Debug log
+      await saveAuthState(data.access_token, email, rememberMe);
+      console.log('Auth state saved, redirecting...'); // Debug log
+      router.push('/home');
+    } catch (error) {
+      console.error('Login error:', error); // Detailed error logging
+      toast({
+        variant: "destructive",
+        title: "Login failed",
+        description: error instanceof Error ? error.message : "An error occurred during login",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);

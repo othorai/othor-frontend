@@ -1,7 +1,7 @@
 // hooks/use-feed.ts
 import { useState, useCallback } from 'react';
 import { format } from 'date-fns';
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 
 export function useFeed() {
   const [feedData, setFeedData] = useState([]);

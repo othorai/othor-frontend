@@ -1,5 +1,6 @@
 // hooks/use-toast.ts
 import * as React from "react"
+import { toast } from "@/components/ui/toast"
 
 import type {
   ToastActionElement,

@@ -1,39 +1,16 @@
 // lib/auth.ts
 import { API_URL } from './config';
+import Cookies from 'js-cookie';
 
 export interface LoginResponse {
   access_token: string;
   token_type: string;
 }
 
-export interface AuthError {
-  detail: string;
-}
-
-export async function login(email: string, password: string): Promise<LoginResponse> {
-  const formData = new URLSearchParams();
-  formData.append('username', email);
-  formData.append('password', password);
-
-  const response = await fetch(`${API_URL}/authorization/login`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: formData.toString(),
-  });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.detail || 'Login failed. Please check your credentials and try again.');
-  }
-
-  return data;
-}
-
 export async function saveAuthState(token: string, email: string, rememberMe: boolean) {
+  // Save token in both localStorage and cookies for better security
   localStorage.setItem('authToken', token);
+  Cookies.set('authToken', token, { path: '/' });
   
   if (rememberMe) {
     localStorage.setItem('savedEmail', email);
@@ -45,7 +22,7 @@ export async function saveAuthState(token: string, email: string, rememberMe: bo
 }
 
 export function getStoredAuthState() {
-  const token = localStorage.getItem('authToken');
+  const token = localStorage.getItem('authToken') || Cookies.get('authToken');
   const savedEmail = localStorage.getItem('savedEmail');
   const rememberMe = localStorage.getItem('rememberMe') === 'true';
 
@@ -58,4 +35,26 @@ export function getStoredAuthState() {
 
 export function clearAuthState() {
   localStorage.removeItem('authToken');
+  Cookies.remove('authToken', { path: '/' });
+  localStorage.removeItem('savedEmail');
+  localStorage.removeItem('rememberMe');
+}
+
+export async function verifyToken(token: string): Promise<boolean> {
+  if (!token) return false;
+
+  try {
+    const response = await fetch(`${API_URL}/authorization/verify`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+export function getAuthToken(): string | null {
+  return localStorage.getItem('authToken') || Cookies.get('authToken') || null;
 }
