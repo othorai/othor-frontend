@@ -177,15 +177,7 @@ export default function HomePage() {
 
   return (
     <div className="container mx-auto px-2 py-8 max-w-4xl">
-      {/* Welcome Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl px-1 font-semibold text-gray-900 mb-2">
-          Welcome{username ? `, ${username}` : ''}
-        </h1>
-        <p className="text-xl px-1 text-gray-600">
-          Today is {formattedDate}
-        </p>
-      </div>
+      
 
       {/* Narratives */}
       <div className="space-y-6">

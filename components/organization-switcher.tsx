@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/select";
 import { Building2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
-import { API_URL } from '@/lib/config';  // Add this import
+import { API_URL } from '@/lib/config';
 
 interface Organization {
   id: string;
@@ -54,7 +54,10 @@ export function OrganizationSwitcher() {
         const activeOrg = currentOrgId 
           ? data.find(org => org.id === currentOrgId)
           : data[0];
-        setActiveOrganization(activeOrg || null);
+        if (activeOrg) {
+          setActiveOrganization(activeOrg);
+          localStorage.setItem('currentOrgName', activeOrg.name);
+        }
       }
     } catch (error) {
       console.error('Error fetching organizations:', error);
@@ -92,18 +95,25 @@ export function OrganizationSwitcher() {
         throw new Error(data.error || 'Failed to switch organization');
       }
 
-      localStorage.setItem('authToken', data.access_token);
-      localStorage.setItem('currentOrgId', orgId);
-      
+      // Find and set the new active organization
       const newActiveOrg = organizations.find(org => org.id === orgId);
-      setActiveOrganization(newActiveOrg || null);
-
-      toast({
-        title: "Success",
-        description: "Organization switched successfully"
-      });
-      
-      window.location.reload();
+      if (newActiveOrg) {
+        localStorage.setItem('authToken', data.access_token);
+        localStorage.setItem('currentOrgId', orgId);
+        localStorage.setItem('currentOrgName', newActiveOrg.name);
+        setActiveOrganization(newActiveOrg);
+        
+        // Dispatch event for org change
+        window.dispatchEvent(new Event('organizationChanged'));
+        
+        toast({
+          title: "Success",
+          description: "Organization switched successfully"
+        });
+        
+        // Reload the page to refresh all data
+        window.location.reload();
+      }
     } catch (error) {
       console.error('Error switching organization:', error);
       toast({
@@ -126,7 +136,7 @@ export function OrganizationSwitcher() {
 
   return (
     <Select 
-      value={activeOrganization?.id}
+      value={activeOrganization?.id} 
       onValueChange={handleSwitchOrganization}
     >
       <SelectTrigger className="w-[200px] bg-background">

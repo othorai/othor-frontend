@@ -1,11 +1,11 @@
 // components/layout/app-layout.tsx
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { OrganizationSwitcher } from "@/components/organization-switcher";
+import { WelcomeHeader } from "@/components/welcome-header";
 import { 
   Home, 
   MessageSquare, 
@@ -26,23 +26,37 @@ const navigation = [
   { name: 'Documents', href: '/documents', icon: Folder },
   { name: 'Forms', href: '/forms', icon: TableProperties },
   { name: 'Settings', href: '/settings', icon: Settings },
-
 ];
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [activeOrgName, setActiveOrgName] = useState<string>('');
   const pathname = usePathname();
   const router = useRouter();
+
+  useEffect(() => {
+    const fetchActiveOrg = () => {
+      const orgName = localStorage.getItem('currentOrgName');
+      if (orgName) {
+        setActiveOrgName(orgName);
+      }
+    };
+
+    fetchActiveOrg();
+    window.addEventListener('organizationChanged', fetchActiveOrg);
+    return () => window.removeEventListener('organizationChanged', fetchActiveOrg);
+  }, []);
 
   return (
     <div className="flex h-screen bg-gray-50">
       {/* Sidebar */}
       <div className={`
-        fixed inset-y-0 left-0 z-50 w-60 bg-slate-100 border-r transform 
+        fixed inset-y-0 left-0 z-50 w-60 bg-slate-100 border-r transform flex flex-col
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
         lg:relative lg:translate-x-0 transition-transform duration-200 ease-in-out
       `}>
-        <div className="h-16 flex items-center justify-between px-4">
+        {/* Logo */}
+        <div className="h-16 flex items-center px-4">
           <img
             src="/images/othor-logo.png"
             alt="Othor AI"
@@ -51,14 +65,15 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           <Button
             variant="ghost"
             size="icon"
-            className="lg:hidden"
+            className="lg:hidden ml-auto"
             onClick={() => setSidebarOpen(false)}
           >
             <X className="h-6 w-6" />
           </Button>
         </div>
 
-        <nav className="p-4 space-y-2">
+        {/* Navigation */}
+        <nav className="flex-1 p-4 space-y-2">
           {navigation.map((item) => {
             const isActive = pathname === item.href;
             return (
@@ -81,27 +96,20 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         </nav>
       </div>
 
-      {/* Main content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="h-16 ">
-          <div className=" px-4 flex items-center justify-between">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="lg:hidden"
-              onClick={() => setSidebarOpen(true)}
-            >
-              <Menu className="h-6 w-6" />
-            </Button>
-            
-            {/* Add Organization Switcher here */}
-            <div className="ml-auto">
-              <OrganizationSwitcher />
-            </div>
-          </div>
-        </header>
+      {/* Mobile menu button */}
+      <Button
+        variant="ghost"
+        size="icon"
+        className="fixed top-4 left-4 z-50 lg:hidden"
+        onClick={() => setSidebarOpen(true)}
+      >
+        <Menu className="h-6 w-6" />
+      </Button>
 
-        <main className="flex-1 overflow-auto bg-gray-50">
+      {/* Main content */}
+      <div className="flex-1 overflow-hidden">
+        <WelcomeHeader organizationName={activeOrgName} />
+        <main className="h-full overflow-auto bg-gray-50 px-6">
           {children}
         </main>
       </div>
