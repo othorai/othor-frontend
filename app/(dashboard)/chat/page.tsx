@@ -49,6 +49,27 @@ export default function ChatPage() {
   const router = useRouter();
   const { toast } = useToast();
 
+  // Add this utility function in your chat page
+const formatDateTime = (dateString: string) => {
+  const date = new Date(dateString);
+  
+  // Get month abbreviation
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  
+  // Get day, month, year
+  const day = date.getDate();
+  const month = months[date.getMonth()];
+  const year = date.getFullYear();
+  
+  // Get time in 12-hour format
+  let hours = date.getHours();
+  const minutes = date.getMinutes().toString().padStart(2, '0');
+  const ampm = hours >= 12 ? 'pm' : 'am';
+  hours = hours % 12 || 12; // Convert to 12-hour format
+
+  return `${day} ${month} ${year} ${hours}.${minutes}${ampm}`;
+};
+
   const groupChats = (chats: ChatSession[]) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -438,9 +459,10 @@ export default function ChatPage() {
       <MessageSquare className="w-4 h-4" />
       <span className="truncate">{chat.title}</span>
     </div>
-    <span className="text-xs text-gray-500 mt-1">
-      {new Date(chat.timestamp).toLocaleString()}
-    </span>
+   {/* In your chat history section */}
+<span className="text-xs text-gray-500 mt-1">
+  {formatDateTime(chat.timestamp)}
+</span>
   </button>
 ))}
                 </div>
