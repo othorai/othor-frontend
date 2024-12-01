@@ -49,6 +49,8 @@ export default function ChatPage() {
   const router = useRouter();
   const { toast } = useToast();
 
+  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB in bytes
+
   // Add this utility function in your chat page
 const formatDateTime = (dateString: string) => {
   const date = new Date(dateString);
@@ -70,7 +72,7 @@ const formatDateTime = (dateString: string) => {
   return `${day} ${month} ${year} ${hours}.${minutes}${ampm}`;
 };
 
-  const groupChats = (chats: ChatSession[]) => {
+  const groupChats = (chats: ChatSession[]): [string, ChatSession[]][] => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const yesterday = new Date(today);
@@ -230,6 +232,15 @@ const formatDateTime = (dateString: string) => {
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
+  
+    if (file.size > MAX_FILE_SIZE) {
+      toast({
+        variant: "destructive",
+        title: "File too large",
+        description: "Please upload a file smaller than 10MB"
+      });
+      return;
+    }
 
     try {
       setUploadingFile(true);
@@ -306,7 +317,7 @@ const formatDateTime = (dateString: string) => {
   };
 
   const sendMessage = async (text = inputText) => {
-    if (!text.trim()) return;
+    if (!text.trim() || isLoading) return;
 
     try {
       setIsLoading(true);
