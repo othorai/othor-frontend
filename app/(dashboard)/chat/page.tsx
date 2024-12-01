@@ -230,17 +230,17 @@ const formatDateTime = (dateString: string) => {
   };
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-  
-    if (file.size > MAX_FILE_SIZE) {
-      toast({
-        variant: "destructive",
-        title: "File too large",
-        description: "Please upload a file smaller than 10MB"
-      });
-      return;
-    }
+  const file = event.target.files?.[0];
+  if (!file) return;
+
+  if (file.size > MAX_FILE_SIZE) {
+    toast({
+      variant: "destructive",
+      title: "File too large",
+      description: "Please upload a file smaller than 10MB"
+    });
+    return;
+  }
 
     try {
       setUploadingFile(true);
