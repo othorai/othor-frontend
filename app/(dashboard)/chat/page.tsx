@@ -229,6 +229,8 @@ const formatDateTime = (dateString: string) => {
     }
   };
 
+  
+
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
   const file = event.target.files?.[0];
   if (!file) return;
@@ -419,7 +421,7 @@ const formatDateTime = (dateString: string) => {
   );
 
   return (
-    <div className="flex h-[calc(100vh-7rem)]">
+    <div className="flex h-[calc(100vh-5rem)]">
       {/* Chat History Sidebar */}
  {/* Chat History Sidebar */}
 <div className="w-64 border-r bg-white hidden md:flex flex-col h-full">

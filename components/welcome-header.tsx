@@ -41,7 +41,7 @@ export function WelcomeHeader({ organizationName }: WelcomeHeaderProps) {
   }, []);
 
   return (
-    <div className="flex justify-between items-center p-6  ">
+    <div className="flex justify-between items-center px-6  py-2">
       <div>
         <h1 className="text-2xl font-semibold text-gray-900">
           Welcome{username ? ` ${username}` : ''}{organizationName ? ` to ${organizationName}` : ''}

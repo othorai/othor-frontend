@@ -107,7 +107,6 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   );
 };
 
-// Scope Selector Component
 const ScopeSelector = ({
   currentScope,
   onChange,
@@ -134,10 +133,13 @@ const ScopeSelector = ({
   const options = isForecast ? forecastScopeOptions : currentScopeOptions;
 
   return (
-    <div className="relative">
+    <div className="relative" onClick={(e) => e.stopPropagation()}>
       <select
         value={currentScope}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => {
+          e.stopPropagation();
+          onChange(e.target.value);
+        }}
         className="appearance-none bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary focus:border-primary block w-full p-2.5 pr-8"
       >
         {options.map((option) => (
@@ -151,7 +153,6 @@ const ScopeSelector = ({
   );
 };
 
-// Resolution Selector Component
 const ResolutionSelector = ({
   currentResolution,
   onChange,
@@ -190,10 +191,13 @@ const ResolutionSelector = ({
   const validResolutions = getValidResolutions(scope);
 
   return (
-    <div className="relative">
+    <div className="relative" onClick={(e) => e.stopPropagation()}>
       <select
         value={currentResolution}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => {
+          e.stopPropagation();
+          onChange(e.target.value);
+        }}
         className="appearance-none bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary focus:border-primary block w-full p-2.5 pr-8"
       >
         {validResolutions.map((option) => (
@@ -214,6 +218,9 @@ const MetricCard = ({ title, data, onExpand, isExpanded, forecastEnabled }: Metr
   const [resolution, setResolution] = useState('monthly');
   
   const isPositive = data?.trend === 'up';
+
+  
+
 
   if (!data) {
     return (
@@ -375,19 +382,46 @@ const MetricCard = ({ title, data, onExpand, isExpanded, forecastEnabled }: Metr
       {renderChart()}
 
       {isExpanded && (
-        <div className="mt-4 grid grid-cols-2 gap-4">
-          <div>
-            <p className="text-sm text-gray-500">Start Date</p>
-            <p className="font-medium">{formatDate(data.start_date)}</p>
-            <p className="font-bold">{formatNumber(data.start_amount)}</p>
-          </div>
-          <div className="text-right">
-            <p className="text-sm text-gray-500">End Date</p>
-            <p className="font-medium">{formatDate(data.end_date)}</p>
-            <p className="font-bold">{formatNumber(data.end_amount)}</p>
-          </div>
-        </div>
-      )}
+  <div className="mb-4 flex justify-end space-x-4" onClick={(e) => e.stopPropagation()}> {/* Add this */}
+    {forecastEnabled && (
+      <div className="flex rounded-lg overflow-hidden border">
+        <Button
+          variant={isForecast ? "outline" : "default"}
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsForecast(false);
+          }}
+        >
+          Current
+        </Button>
+        <Button
+          variant={isForecast ? "default" : "outline"}
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsForecast(true);
+          }}
+        >
+          Forecast
+        </Button>
+      </div>
+    )}
+    <div className="flex space-x-2">
+      <ScopeSelector
+        currentScope={scope}
+        onChange={(newScope) => {
+          setScope(newScope);
+          // Handle scope change logic here
+        }}
+        isForecast={isForecast}
+      />
+      <ResolutionSelector
+        currentResolution={resolution}
+        onChange={setResolution}
+        scope={scope}
+      />
+    </div>
+  </div>
+)}
     </Card>
   );
 };
