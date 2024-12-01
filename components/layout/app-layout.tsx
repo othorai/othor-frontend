@@ -49,7 +49,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-screen bg-gray-50">
-      {/* Sidebar */}
+      {/* Sidebar - stays the same */}
       <div className={`
         fixed inset-y-0 left-0 z-50 w-60 bg-slate-100 border-r transform flex flex-col
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
@@ -73,27 +73,31 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 p-4 space-y-2">
-          {navigation.map((item) => {
-            const isActive = pathname === item.href;
-            return (
-              <Link
-                key={item.name}
-                href={item.href}
-                className={`
-                  flex items-center px-4 py-2 rounded-lg text-base font-medium
-                  ${isActive 
-                    ? 'bg-primary text-white' 
-                    : 'text-gray-600 hover:bg-gray-100'
-                  }
-                `}
-              >
-                <item.icon className="mr-3 h-6 w-6" />
-                {item.name}
-              </Link>
-            );
-          })}
-        </nav>
+
+
+{/* Navigation */}
+<nav className="flex-1 p-4 space-y-2">
+  {navigation.map((item) => {
+    const isActive = pathname === item.href;
+    return (
+      <Link
+        key={item.name}
+        href={item.href}
+        className={`
+          flex items-center px-4 py-2 rounded-lg text-base font-medium
+          transition-colors duration-200 ease-in-out
+          ${isActive 
+            ? 'bg-primary text-white' 
+            : 'text-gray-600 hover:bg-gray-200 dark:hover:bg-gray-700'
+          }
+        `}
+      >
+        <item.icon className="mr-3 h-6 w-6" />
+        {item.name}
+      </Link>
+    );
+  })}
+</nav>
       </div>
 
       {/* Mobile menu button */}
@@ -106,13 +110,18 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         <Menu className="h-6 w-6" />
       </Button>
 
-      {/* Main content */}
-      <div className="flex-1 overflow-hidden">
+      {/* Main content wrapper */}
+    <div className="flex-1 flex flex-col overflow-hidden">
+      {/* Sticky header */}
+      <div className="flex-shrink-0">
         <WelcomeHeader organizationName={activeOrgName} />
-        <main className="h-full overflow-auto bg-gray-50 px-6">
-          {children}
-        </main>
       </div>
+
+      {/* Scrollable main content */}
+      <main className="flex-1 overflow-auto bg-gray-50 px-6 pb-6">
+        {children}
+      </main>
     </div>
-  );
+  </div>
+);
 }

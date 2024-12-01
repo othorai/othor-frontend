@@ -410,68 +410,71 @@ const formatDateTime = (dateString: string) => {
   return (
     <div className="flex h-[calc(100vh-7rem)]">
       {/* Chat History Sidebar */}
-      <div className="w-64 border-r bg-white hidden md:block">
-        {/* New Chat Button */}
-        <div className="p-4 border-b">
-          <Button 
-            onClick={handleNewChat}
-            className="w-full justify-start gap-2" 
-            variant="ghost"
-          >
-            <MessageSquare size={20} />
-            New Chat
-          </Button>
-        </div>
+ {/* Chat History Sidebar */}
+<div className="w-64 border-r bg-white hidden md:flex flex-col h-full">
+  {/* New Chat Button - Static */}
+  <div className="flex-shrink-0 p-4 border-b">
+    <Button 
+      onClick={handleNewChat}
+      className="w-full justify-start gap-2" 
+      variant="ghost"
+    >
+      <MessageSquare size={20} />
+      New Chat
+    </Button>
+  </div>
 
-        {/* Chat History List */}
-        <div className="flex-1 overflow-y-auto">
-          <div className="px-3 py-2 text-sm font-medium text-gray-500">
-            Chat History
+  {/* Chat History Header - Static */}
+  <div className="flex-shrink-0 px-3 py-2 text-sm font-medium text-gray-500 border-b">
+    Chat History
+  </div>
+
+  {/* Chat History - Scrollable */}
+  <div className="flex-1 overflow-y-auto">
+    {isLoadingHistory ? (
+      <div className="p-4 space-y-3">
+        {[...Array(5)].map((_, i) => (
+          <div key={i} className="animate-pulse">
+            <div className="h-12 bg-gray-100 rounded-lg"></div>
           </div>
-          {isLoadingHistory ? (
-            <div className="p-4 space-y-3">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="animate-pulse">
-                  <div className="h-12 bg-gray-100 rounded-lg"></div>
-                </div>
-              ))}
-            </div>
-          ) : chatHistory.length === 0 ? (
-            <div className="px-4 py-3 text-sm text-gray-500">
-              No chat history yet
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {groupChats(chatHistory).map(([groupName, chats]) => (
-                <div key={groupName} className="space-y-1">
-                  <div className="px-4 py-2 text-xs font-medium text-gray-500">
-                    {groupName}
-                  </div>
-                  {chatHistory.map((chat) => (
-  <button
-    key={chat.id}
-    onClick={() => handleChatSelect(chat.id)}
-    className={`w-full text-left px-4 py-2 hover:bg-gray-100 
-      ${selectedChatId === chat.id ? 'bg-gray-100' : ''}
-    `}
-  >
-    <div className="flex items-center space-x-2">
-      <MessageSquare className="w-4 h-4" />
-      <span className="truncate">{chat.title}</span>
-    </div>
-   {/* In your chat history section */}
-<span className="text-xs text-gray-500 mt-1">
-  {formatDateTime(chat.timestamp)}
-</span>
-  </button>
-))}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        ))}
       </div>
-
+    ) : chatHistory.length === 0 ? (
+      <div className="px-4 py-3 text-sm text-gray-500">
+        No chat history yet
+      </div>
+    ) : (
+      <div>
+        {groupChats(chatHistory).map(([groupName, chats]) => (
+          <div key={groupName}>
+            <div className="px-4 py-2 text-xs font-medium text-gray-500 sticky top-0 bg-white z-10">
+              {groupName}
+            </div>
+            {(chats as ChatSession[]).map((chat) => (
+              <button
+                key={chat.id}
+                onClick={() => handleChatSelect(chat.id)}
+                className={`w-full text-left px-4 py-3 hover:bg-gray-100 transition-colors
+                  ${selectedChatId === chat.id ? 'bg-gray-100' : ''}
+                `}
+              >
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center space-x-2">
+                    <MessageSquare className="w-4 h-4 flex-shrink-0 text-gray-500" />
+                    <span className="truncate text-sm">{chat.title}</span>
+                  </div>
+                  <span className="text-xs text-gray-500">
+                    {formatDateTime(chat.timestamp)}
+                  </span>
+                </div>
+              </button>
+            ))}
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+</div>
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col min-h-0">
         {/* Chat Messages */}
