@@ -85,6 +85,63 @@ export default function ChatPage() {
     return Object.entries(groups).filter(([_, chats]) => chats.length > 0);
   };
 
+  const handleChatSelect = async (chatId: string) => {
+    try {
+      setIsLoading(true);
+      setShowSuggestions(false);
+      setShowLogo(false);
+      setSelectedChatId(chatId);
+      setSessionId(chatId);
+  
+      const token = localStorage.getItem('authToken');
+      if (!token) return;
+  
+      const response = await fetch(`/api/chatbot/chat/session/${chatId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+        },
+      });
+  
+      if (!response.ok) {
+        throw new Error('Failed to load chat session');
+      }
+  
+      const sessionChats = await response.json();
+  
+      // Format the messages
+      const formattedMessages = sessionChats
+        .map((chat: any) => ([
+          { text: chat.question, isUser: true },
+          { text: chat.answer, isUser: false }
+        ]))
+        .flat()
+        .reverse();
+  
+      setMessages(formattedMessages);
+  
+      // Check for documents in this session
+      if (sessionChats.documents?.length > 0) {
+        setDocuments(sessionChats.documents);
+        setShowDocumentSidebar(true);
+      } else {
+        setDocuments([]);
+        setShowDocumentSidebar(false);
+      }
+  
+    } catch (error) {
+      console.error('Error loading chat session:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to load chat session"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+
 
   useEffect(() => {
     const token = localStorage.getItem('authToken');
@@ -369,23 +426,23 @@ export default function ChatPage() {
                   <div className="px-4 py-2 text-xs font-medium text-gray-500">
                     {groupName}
                   </div>
-                  {chats.map((chat) => (
-                    <button
-                      key={chat.id}
-                      onClick={() => setSelectedChatId(chat.id)}
-                      className={`w-full text-left px-4 py-2 hover:bg-gray-100 
-                        ${selectedChatId === chat.id ? 'bg-gray-100' : ''}
-                      `}
-                    >
-                      <div className="flex items-center space-x-2">
-                        <MessageSquare className="w-4 h-4" />
-                        <span className="truncate">{chat.title}</span>
-                      </div>
-                      <span className="text-xs text-gray-500 mt-1">
-                        {new Date(chat.timestamp).toLocaleString()}
-                      </span>
-                    </button>
-                  ))}
+                  {chatHistory.map((chat) => (
+  <button
+    key={chat.id}
+    onClick={() => handleChatSelect(chat.id)}
+    className={`w-full text-left px-4 py-2 hover:bg-gray-100 
+      ${selectedChatId === chat.id ? 'bg-gray-100' : ''}
+    `}
+  >
+    <div className="flex items-center space-x-2">
+      <MessageSquare className="w-4 h-4" />
+      <span className="truncate">{chat.title}</span>
+    </div>
+    <span className="text-xs text-gray-500 mt-1">
+      {new Date(chat.timestamp).toLocaleString()}
+    </span>
+  </button>
+))}
                 </div>
               ))}
             </div>
