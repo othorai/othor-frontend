@@ -1,3 +1,4 @@
+// app/api/chatbot/suggested_questions/route.ts
 import { NextResponse } from 'next/server';
 import { API_URL } from '@/lib/config';
 
@@ -9,7 +10,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const response = await fetch(`${API_URL}/chatbot/suggested-questions`, {
+    const response = await fetch(`${API_URL}/chatbot/suggested_questions`, {
       headers: {
         'Authorization': authHeader,
         'Accept': 'application/json',

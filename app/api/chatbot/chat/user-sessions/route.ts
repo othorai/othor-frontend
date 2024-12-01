@@ -1,3 +1,4 @@
+// app/api/chatbot/user-sessions/route.ts
 import { NextResponse } from 'next/server';
 import { API_URL } from '@/lib/config';
 

@@ -31,6 +31,7 @@ export default function ChatPage() {
   const [inputText, setInputText] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(true);
   const [sessionId, setSessionId] = useState('');
@@ -48,6 +49,43 @@ export default function ChatPage() {
   const router = useRouter();
   const { toast } = useToast();
 
+  const groupChats = (chats: ChatSession[]) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const weekAgo = new Date(today);
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    const monthAgo = new Date(today);
+    monthAgo.setMonth(monthAgo.getMonth() - 1);
+
+    const groups = {
+      'Today': [],
+      'Yesterday': [],
+      'Previous 7 days': [],
+      'Previous 30 Days': [],
+      'Older': []
+    };
+
+    chats.forEach(chat => {
+      const chatDate = new Date(chat.timestamp);
+      if (chatDate >= today) {
+        groups['Today'].push(chat);
+      } else if (chatDate >= yesterday) {
+        groups['Yesterday'].push(chat);
+      } else if (chatDate >= weekAgo) {
+        groups['Previous 7 days'].push(chat);
+      } else if (chatDate >= monthAgo) {
+        groups['Previous 30 Days'].push(chat);
+      } else {
+        groups['Older'].push(chat);
+      }
+    });
+
+    return Object.entries(groups).filter(([_, chats]) => chats.length > 0);
+  };
+
+
   useEffect(() => {
     const token = localStorage.getItem('authToken');
     if (!token) {
@@ -63,7 +101,7 @@ export default function ChatPage() {
       const token = localStorage.getItem('authToken');
       if (!token) return;
 
-      const response = await fetch('/api/chatbot/suggested_questions', {
+      const response = await fetch('/api/chatbot/chat/suggested_questions', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Accept': 'application/json',
@@ -81,10 +119,11 @@ export default function ChatPage() {
 
   const fetchChatHistory = async () => {
     try {
+      setIsLoadingHistory(true);
       const token = localStorage.getItem('authToken');
       if (!token) return;
 
-      const response = await fetch('/api/chatbot/user-sessions', {
+      const response = await fetch('/api/chatbot/chat/user-sessions', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Accept': 'application/json',
@@ -93,14 +132,20 @@ export default function ChatPage() {
 
       if (response.ok) {
         const data = await response.json();
-        setChatHistory(data.map((session: any, index: number) => ({
-          id: session.session_id,
-          title: `Chat ${index + 1}`,
-          timestamp: session.last_interaction
-        })));
+        setChatHistory(data);
+      } else {
+        throw new Error('Failed to fetch chat history');
       }
     } catch (error) {
       console.error('Error fetching chat history:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to load chat history"
+      });
+      setChatHistory([]);
+    } finally {
+      setIsLoadingHistory(false);
     }
   };
 
@@ -113,6 +158,7 @@ export default function ChatPage() {
       if (file.size > 10 * 1024 * 1024) { // 10MB limit
         throw new Error('File size too large. Please upload a file smaller than 10MB.');
       }
+      
       const uploadMessage: Message = { 
         text: `Uploading file: ${file.name}...`, 
         isUser: true 
@@ -226,6 +272,9 @@ export default function ChatPage() {
       }
 
       setShowSuggestions(true);
+      
+      // Refresh chat history after sending a message
+      fetchChatHistory();
 
     } catch (error) {
       console.error('Error sending message:', error);
@@ -248,7 +297,10 @@ export default function ChatPage() {
     setShowDocumentSidebar(false);
     setInputText('');
     fetchSuggestions();
+    fetchChatHistory(); // Refresh chat history after starting new chat
   };
+
+  
 
   const DocumentPreview = ({ document }: { document: Document }) => (
     <div className="fixed inset-0 bg-black/50 z-50">
@@ -278,10 +330,11 @@ export default function ChatPage() {
   );
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] bg-gray-50">
+    <div className="flex h-[calc(100vh-7rem)]">
       {/* Chat History Sidebar */}
       <div className="w-64 border-r bg-white hidden md:block">
-        <div className="p-4">
+        {/* New Chat Button */}
+        <div className="p-4 border-b">
           <Button 
             onClick={handleNewChat}
             className="w-full justify-start gap-2" 
@@ -291,27 +344,59 @@ export default function ChatPage() {
             New Chat
           </Button>
         </div>
-        <div className="overflow-y-auto h-[calc(100%-5rem)]">
-          {chatHistory.map((chat) => (
-            <Button
-              key={chat.id}
-              variant="ghost"
-              className={`w-full justify-start px-4 py-2 text-left ${
-                selectedChatId === chat.id ? 'bg-gray-100' : ''
-              }`}
-              onClick={() => setSelectedChatId(chat.id)}
-            >
-              <MessageSquare size={16} className="mr-2" />
-              <span className="truncate">{chat.title}</span>
-            </Button>
-          ))}
+
+        {/* Chat History List */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="px-3 py-2 text-sm font-medium text-gray-500">
+            Chat History
+          </div>
+          {isLoadingHistory ? (
+            <div className="p-4 space-y-3">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="animate-pulse">
+                  <div className="h-12 bg-gray-100 rounded-lg"></div>
+                </div>
+              ))}
+            </div>
+          ) : chatHistory.length === 0 ? (
+            <div className="px-4 py-3 text-sm text-gray-500">
+              No chat history yet
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {groupChats(chatHistory).map(([groupName, chats]) => (
+                <div key={groupName} className="space-y-1">
+                  <div className="px-4 py-2 text-xs font-medium text-gray-500">
+                    {groupName}
+                  </div>
+                  {chats.map((chat) => (
+                    <button
+                      key={chat.id}
+                      onClick={() => setSelectedChatId(chat.id)}
+                      className={`w-full text-left px-4 py-2 hover:bg-gray-100 
+                        ${selectedChatId === chat.id ? 'bg-gray-100' : ''}
+                      `}
+                    >
+                      <div className="flex items-center space-x-2">
+                        <MessageSquare className="w-4 h-4" />
+                        <span className="truncate">{chat.title}</span>
+                      </div>
+                      <span className="text-xs text-gray-500 mt-1">
+                        {new Date(chat.timestamp).toLocaleString()}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-h-0">
         {/* Chat Messages */}
-        <div className="flex-1 overflow-y-auto p-4" ref={chatContainerRef}>
+        <div className="flex-1 overflow-y-auto p-4 min-h-0" ref={chatContainerRef}>
           {showLogo && (
             <div className="flex flex-col items-center justify-center h-full">
               <Image
@@ -344,7 +429,7 @@ export default function ChatPage() {
 
         {/* Suggestions */}
         {showSuggestions && suggestions.length > 0 && (
-          <div className="px-4 py-2 flex gap-2 overflow-x-auto">
+          <div className="px-4 py-2 flex gap-2 overflow-x-auto border-t">
             {suggestions.map((suggestion, index) => (
               <Button
                 key={index}
@@ -361,7 +446,7 @@ export default function ChatPage() {
         )}
 
         {/* Input Area */}
-        <div className="border-t bg-white p-4">
+        <div className="border-t bg-white p-4 mt-auto">
           <div className="flex gap-2 items-center">
             <input
               type="file"
