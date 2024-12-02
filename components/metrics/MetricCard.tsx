@@ -22,26 +22,30 @@ export interface MetricData {
   }>;
 }
 
+interface ScopeOption {
+  label: string;
+  value: string;
+}
+
+interface ResolutionOption {
+  label: string;
+  value: string;
+}
+
 interface MetricCardProps {
   title: string;
   data: MetricData;
   onExpand?: () => void;
   isExpanded?: boolean;
   forecastEnabled?: boolean;
+  isForecast?: boolean;
+  scope: string;
+  resolution: string;
+  onScopeChange: (scope: string) => void;
+  onResolutionChange: (resolution: string) => void;
+  scopeOptions: ScopeOption[];
+  resolutionOptions: ResolutionOption[];
 }
-
-const scopeOptions = [
-  { label: 'This Week', value: 'this_week' },
-  { label: 'This Month', value: 'this_month' },
-  { label: 'This Quarter', value: 'this_quarter' },
-  { label: 'This Year', value: 'this_year' },
-];
-
-const resolutionOptions = [
-  { label: 'Daily', value: 'daily' },
-  { label: 'Weekly', value: 'weekly' },
-  { label: 'Monthly', value: 'monthly' },
-];
 
 const MetricCard = ({
   title,
@@ -49,18 +53,38 @@ const MetricCard = ({
   onExpand,
   isExpanded,
   forecastEnabled,
+  isForecast = false,
+  scope,
+  resolution,
+  onScopeChange,
+  onResolutionChange,
+  scopeOptions,
+  resolutionOptions,
 }: MetricCardProps) => {
   const [data, setData] = useState(initialData);
   const [loading, setLoading] = useState(false);
-  const [scope, setScope] = useState('this_year');
-  const [resolution, setResolution] = useState('monthly');
   const { toast } = useToast();
+
+  useEffect(() => {
+    setData(initialData);
+  }, [initialData]);
 
   const fetchMetricData = useCallback(async (newScope: string, newResolution: string) => {
     try {
       setLoading(true);
+      const token = localStorage.getItem('authToken');
+      if (!token) return;
+
+      const endpoint = isForecast ? '/api/metrics/single_metric_forecast' : '/api/metrics/single_metric_card';
+      const metricKey = title.toLowerCase().replace(/ /g, '_');
+      
       const response = await fetch(
-        `/api/metrics/single_metric_card?metric=${title.toLowerCase().replace(/ /g, '_')}&scope=${newScope}&resolution=${newResolution}`
+        `${endpoint}?metric=${metricKey}&scope=${newScope}&resolution=${newResolution}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        }
       );
 
       if (!response.ok) {
@@ -69,8 +93,8 @@ const MetricCard = ({
 
       const result = await response.json();
       
-      if (result.metric_card) {
-        setData(result.metric_card);
+      if (result.metric_card || result.forecast) {
+        setData(isForecast ? result.forecast : result.metric_card);
       } else {
         throw new Error('Invalid response format');
       }
@@ -84,17 +108,17 @@ const MetricCard = ({
     } finally {
       setLoading(false);
     }
-  }, [title, toast]);
+  }, [title, toast, isForecast]);
 
   const handleScopeChange = useCallback((newScope: string) => {
-    setScope(newScope);
+    onScopeChange(newScope);
     fetchMetricData(newScope, resolution);
-  }, [resolution, fetchMetricData]);
+  }, [resolution, fetchMetricData, onScopeChange]);
 
   const handleResolutionChange = useCallback((newResolution: string) => {
-    setResolution(newResolution);
+    onResolutionChange(newResolution);
     fetchMetricData(scope, newResolution);
-  }, [scope, fetchMetricData]);
+  }, [scope, fetchMetricData, onResolutionChange]);
 
   if (!isExpanded) {
     return (
@@ -129,7 +153,8 @@ const MetricCard = ({
           <h2 className="text-xl font-bold">{title}</h2>
         </div>
         <div className="flex gap-4">
-          <div className="flex gap-2">
+
+        <div className="flex gap-2">
             {scopeOptions.map((option) => (
               <Button
                 key={option.value}
@@ -157,7 +182,27 @@ const MetricCard = ({
       </div>
       
       <div className="h-[400px] mb-6">
-        <MetricChart data={data} type="line" />
+        {loading ? (
+          <div className="flex items-center justify-center h-full">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          </div>
+        ) : (
+          <MetricChart 
+            data={{
+              ...data,
+              isForecast,
+              graph_data: data.graph_data.map(point => ({
+                ...point,
+                // Only include moving averages for non-forecast data
+                ...(isForecast ? {} : {
+                  ma3: point.ma3,
+                  ma7: point.ma7
+                })
+              }))
+            }} 
+            type="line" 
+          />
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-4">
@@ -167,10 +212,28 @@ const MetricCard = ({
           <div className="font-bold">{data.start_amount.toFixed(2)}</div>
         </div>
         <div className="text-right">
-          <div className="text-sm text-muted-foreground">End Date</div>
+          <div className="text-sm text-muted-foreground">
+            {isForecast ? 'Forecast End Date' : 'End Date'}
+          </div>
           <div className="font-medium">{new Date(data.end_date).toLocaleDateString()}</div>
           <div className="font-bold">{data.end_amount.toFixed(2)}</div>
         </div>
+      </div>
+
+      <div className="mt-6 flex justify-between items-center">
+        <div className="flex items-center gap-2">
+          <div className={`text-lg font-semibold ${data.trend === 'up' ? 'text-green-600' : 'text-red-600'}`}>
+            {data.percentage_change >= 0 ? '+' : ''}{data.percentage_change.toFixed(2)}%
+          </div>
+          <div className="text-sm text-muted-foreground">
+            {isForecast ? 'Forecasted Change' : 'Change'}
+          </div>
+        </div>
+        {forecastEnabled && (
+          <div className="text-sm text-muted-foreground">
+            {isForecast ? 'Forecasted values are estimates based on historical data' : 'Historical data'}
+          </div>
+        )}
       </div>
     </Card>
   );
