@@ -47,18 +47,18 @@ function MetricsPage() {
     if (data?.metrics) {
       Object.entries(data.metrics).forEach(([key, metric]: [string, any]) => {
         transformed[key] = {
-          percentage_change: metric.change?.percentage || 0,
-          trend: (metric.change?.percentage || 0) >= 0 ? 'up' : 'down',
-          start_date: data.metadata?.start_date || new Date().toISOString(),
-          end_date: data.metadata?.end_date || new Date().toISOString(),
-          start_amount: metric.previous_value || 0,
-          end_amount: metric.current_value || 0,
-          graph_data: (metric.trend_data || []).map((point: any) => ({
-            date: point.date || new Date().toISOString(),
-            value: point.value || 0,
-            trend: point.trend,
-            ma3: point.ma3,
-            ma7: point.ma7,
+          percentage_change: metric.change?.percentage ?? 0,
+          trend: (metric.change?.percentage ?? 0) >= 0 ? 'up' : 'down',
+          start_date: data.metadata?.start_date ?? new Date().toISOString(),
+          end_date: data.metadata?.end_date ?? new Date().toISOString(),
+          start_amount: metric.previous_value ?? 0,
+          end_amount: metric.current_value ?? 0,
+          graph_data: (metric.trend_data ?? []).map((point: any) => ({
+            date: point.date ?? new Date().toISOString(),
+            value: typeof point.value === 'number' ? point.value : 0,
+            trend: point.trend ?? 'up',
+            ma3: point.ma3 ?? null,
+            ma7: point.ma7 ?? null,
           }))
         };
       });
@@ -144,59 +144,61 @@ function MetricsPage() {
 
       // Updated endpoint path to match API structure
       const endpoint = isForecast && forecastableMetrics.includes(selectedMetric?.toLowerCase() ?? '') 
-        ? '/api/metrics/cards/metric_forecast'
-        : '/api/metrics/cards';
+      ? '/api/metrics/cards/metric_forecast'
+      : '/api/metrics/cards';
 
-      const response = await fetch(
-        `${endpoint}?scope=${scope}&resolution=${resolution}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        }
-      );
+    console.log('Fetching from endpoint:', endpoint); // Debug log
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch metrics');
+    const response = await fetch(
+      `${endpoint}?scope=${scope}&resolution=${resolution}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
       }
+    );
 
-      const data = await response.json();
-      if (!data) {
-        throw new Error('No data received from API');
-      }
+    const data = await response.json();
+    console.log('Raw API response:', data); // Debug log
 
-      const transformedData = isForecast ? transformForecastData(data) : transformCurrentData(data);
-      
-      if (Object.keys(transformedData).length > 0) {
-        setMetricCards(transformedData);
-      } else {
-        toast({
-          title: "Warning",
-          description: "No metrics data available",
-          variant: "warning",
-        });
-      }
-    } catch (error) {
-      console.error('Error fetching metrics:', error);
-      if (isForecast) {
-        setIsForecast(false);
-        toast({
-          title: "Forecast Unavailable",
-          description: "Unable to load forecast data. Showing current data instead.",
-          variant: "destructive",
-        });
-        fetchMetricCards();
-      } else {
-        toast({
-          title: "Error",
-          description: "Failed to load metrics data",
-          variant: "destructive",
-        });
-      }
-    } finally {
-      setLoading(false);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch metrics: ${data.error || response.statusText}`);
     }
-  }, [scope, resolution, isForecast, selectedMetric, router, toast, forecastableMetrics]);
+
+    const transformedData = isForecast ? transformForecastData(data) : transformCurrentData(data);
+    console.log('Transformed data:', transformedData); // Debug log
+    
+    if (Object.keys(transformedData).length > 0) {
+      setMetricCards(transformedData);
+    } else {
+      console.warn('No metrics data after transformation'); // Debug log
+      toast({
+        title: "Warning",
+        description: "No metrics data available",
+        variant: "warning",
+      });
+    }
+  } catch (error) {
+    console.error('Error fetching metrics:', error);
+    if (isForecast) {
+      setIsForecast(false);
+      toast({
+        title: "Forecast Unavailable",
+        description: "Unable to load forecast data. Showing current data instead.",
+        variant: "destructive",
+      });
+      fetchMetricCards();
+    } else {
+      toast({
+        title: "Error",
+        description: "Failed to load metrics data",
+        variant: "destructive",
+      });
+    }
+  } finally {
+    setLoading(false);
+  }
+}, [scope, resolution, isForecast, selectedMetric, router, toast, forecastableMetrics]);
 
   useEffect(() => {
     fetchForecastMetrics();
