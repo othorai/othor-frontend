@@ -6,8 +6,7 @@ import {
   YAxis, 
   CartesianGrid, 
   Tooltip, 
-  ResponsiveContainer,
-  Legend
+  ResponsiveContainer
 } from 'recharts';
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from 'lucide-react';
@@ -29,6 +28,8 @@ interface MetricChartProps {
     isForecast?: boolean;
   };
   type?: string;
+  height?: number;
+  compactView?: boolean;
 }
 
 const formatValue = (value: number) => {
@@ -38,7 +39,7 @@ const formatValue = (value: number) => {
   return value.toFixed(1);
 };
 
-export function MetricChart({ data, type = 'line' }: MetricChartProps) {
+export function MetricChart({ data, type = 'line', height = 300, compactView = false }: MetricChartProps) {
   if (!data?.graph_data || !Array.isArray(data.graph_data) || data.graph_data.length === 0) {
     return (
       <Alert variant="destructive">
@@ -55,26 +56,40 @@ export function MetricChart({ data, type = 'line' }: MetricChartProps) {
     ma7: point.ma7
   }));
 
+  // Calculate domain with reduced scale for compact view
+  const yValues = chartData.map(d => d.value);
+  const minValue = Math.min(...yValues);
+  const maxValue = Math.max(...yValues);
+  const padding = compactView 
+    ? (maxValue - minValue) * 0.1  // 10% padding for compact view
+    : (maxValue - minValue) * 0.25; // 25% padding for expanded view
+  
   return (
-    <ResponsiveContainer width="100%" height="100%">
+    <ResponsiveContainer width="100%" height={height}>
       <LineChart data={chartData}>
         <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
         <XAxis 
           dataKey="date" 
           className="text-xs fill-muted-foreground"
+          tick={{ fontSize: compactView ? 10 : 12 }}
+          tickMargin={compactView ? 5 : 10}
         />
         <YAxis 
           className="text-xs fill-muted-foreground"
           tickFormatter={formatValue}
+          domain={[minValue - padding, maxValue + padding]}
+          tick={{ fontSize: compactView ? 10 : 12 }}
+          tickMargin={compactView ? 5 : 10}
         />
         <Tooltip
           contentStyle={{ 
             backgroundColor: 'hsl(var(--background))',
             borderColor: 'hsl(var(--border))',
+            fontSize: compactView ? 12 : 14
           }}
           formatter={(value: number) => [formatValue(value), 'Value']}
         />
-        {!data.isForecast && data.graph_data[0]?.ma7 && (
+        {!data.isForecast && chartData[0]?.ma7 && (
           <Line
             type="monotone"
             dataKey="ma7"
@@ -85,7 +100,7 @@ export function MetricChart({ data, type = 'line' }: MetricChartProps) {
             name="7-day MA"
           />
         )}
-        {!data.isForecast && data.graph_data[0]?.ma3 && (
+        {!data.isForecast && chartData[0]?.ma3 && (
           <Line
             type="monotone"
             dataKey="ma3"
@@ -100,21 +115,14 @@ export function MetricChart({ data, type = 'line' }: MetricChartProps) {
           type="monotone" 
           dataKey="value" 
           stroke="hsl(var(--primary))" 
-          strokeWidth={2}
+          strokeWidth={compactView ? 1.5 : 2}
           dot={{ 
             fill: 'hsl(var(--background))',
-            strokeWidth: 2,
+            strokeWidth: compactView ? 1.5 : 2,
+            r: compactView ? 3 : 4
           }}
-          activeDot={{ r: 6 }}
-          name={data.isForecast ? "Forecast" : "Actual"}
+          activeDot={{ r: compactView ? 4 : 6 }}
         />
-        {(data.graph_data[0]?.ma3 || data.graph_data[0]?.ma7) && (
-          <Legend
-            verticalAlign="top"
-            height={36}
-            formatter={(value) => <span className="text-xs">{value}</span>}
-          />
-        )}
       </LineChart>
     </ResponsiveContainer>
   );

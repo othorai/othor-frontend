@@ -123,7 +123,7 @@ const MetricCard = ({
     if (!isExpanded) {
       return (
         <Card 
-          className="p-4 cursor-pointer hover:shadow-lg transition-shadow h-full flex flex-col"
+          className="p-4 cursor-pointer hover:shadow-lg transition-shadow flex flex-col"
           onClick={onExpand}
         >
           <div className="flex justify-between items-start mb-2">
@@ -182,9 +182,9 @@ const MetricCard = ({
               </div>
             </div>
             
-            <div className="h-[500px]">
+            <div className="h-[300px]">
               {loading ? (
-                <div className="flex items-center justify-center h-full">
+                <div className="flex items-center justify-center">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                 </div>
               ) : (
