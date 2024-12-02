@@ -1,61 +1,102 @@
 // app/api/metrics/single_metric_card/route.ts
 import { NextResponse } from 'next/server';
-import { API_URL } from '@/lib/config';
+
+interface MetricPoint {
+  date: string;
+  value: number;
+  trend?: string;
+  ma3?: number;
+  ma7?: number;
+}
+
+interface MetricResponse {
+  metric_card: {
+    percentage_change: number;
+    trend: 'up' | 'down';
+    start_date: string;
+    end_date: string;
+    start_amount: number;
+    end_amount: number;
+    graph_data: MetricPoint[];
+  };
+}
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const metric = searchParams.get('metric');
-    const scope = searchParams.get('scope') || 'this_year';
-    const resolution = searchParams.get('resolution') || 'monthly';
-    
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const scope = searchParams.get('scope');
+    const resolution = searchParams.get('resolution');
+
+    // Validate required parameters
+    if (!metric || !scope || !resolution) {
+      return NextResponse.json(
+        { error: 'Missing required parameters' },
+        { status: 400 }
+      );
     }
 
-    // Update the API URL to use /metrics directly
-    const apiUrl = `${API_URL}/metrics?scope=${scope}&resolution=${resolution}`;
+    // Mock data generation based on parameters
+    const currentDate = new Date();
+    const graphData: MetricPoint[] = [];
+    let startDate = new Date();
+    let numPoints = 12;
 
-    const response = await fetch(apiUrl, {
-      headers: {
-        'Authorization': authHeader,
-      },
-      cache: 'no-store',
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+    // Adjust date range based on scope
+    switch (scope) {
+      case 'this_week':
+        startDate.setDate(currentDate.getDate() - 7);
+        numPoints = 7;
+        break;
+      case 'this_month':
+        startDate.setMonth(currentDate.getMonth(), 1);
+        numPoints = resolution === 'weekly' ? 4 : 30;
+        break;
+      case 'this_quarter':
+        startDate.setMonth(currentDate.getMonth() - 3);
+        numPoints = resolution === 'monthly' ? 3 : 12;
+        break;
+      case 'this_year':
+        startDate.setFullYear(currentDate.getFullYear(), 0, 1);
+        numPoints = resolution === 'monthly' ? 12 : 52;
+        break;
+      default:
+        startDate.setMonth(currentDate.getMonth() - 12);
     }
 
-    const data = await response.json();
-
-    // Find the specific metric data from the response
-    const metricData = data.metrics[metric];
-    if (!metricData) {
-      throw new Error('Metric not found');
+    // Generate sample data points
+    let baseValue = 1000;
+    for (let i = 0; i < numPoints; i++) {
+      const date = new Date(startDate);
+      date.setDate(date.getDate() + (i * (resolution === 'monthly' ? 30 : resolution === 'weekly' ? 7 : 1)));
+      
+      const randomChange = (Math.random() - 0.5) * 100;
+      baseValue += randomChange;
+      
+      graphData.push({
+        date: date.toISOString(),
+        value: Math.max(0, baseValue),
+        trend: randomChange >= 0 ? 'up' : 'down',
+        ma3: baseValue + (Math.random() - 0.5) * 50,
+        ma7: baseValue + (Math.random() - 0.5) * 50
+      });
     }
 
-    // Transform the data to match the expected format
-    const transformedData = {
-      percentage_change: metricData.change.percentage,
-      start_date: data.metadata.start_date,
-      end_date: data.metadata.end_date,
-      start_amount: metricData.previous_value,
-      end_amount: metricData.current_value,
-      trend: metricData.change.percentage >= 0 ? 'up' : 'down',
-      graph_data: metricData.trend_data.map((point: any) => ({
-        date: point.date,
-        value: point.value,
-        ma3: point.ma3,
-        ma7: point.ma7
-      }))
+    const response: MetricResponse = {
+      metric_card: {
+        percentage_change: ((graphData[graphData.length - 1].value - graphData[0].value) / graphData[0].value) * 100,
+        trend: graphData[graphData.length - 1].value >= graphData[0].value ? 'up' : 'down',
+        start_date: graphData[0].date,
+        end_date: graphData[graphData.length - 1].date,
+        start_amount: graphData[0].value,
+        end_amount: graphData[graphData.length - 1].value,
+        graph_data: graphData
+      }
     };
 
-    return NextResponse.json(transformedData);
-
+    return NextResponse.json(response);
   } catch (error) {
-    console.error('Error in metrics API:', error);
+    console.error('Error processing metric request:', error);
     return NextResponse.json(
       { error: 'Failed to fetch metric data' },
       { status: 500 }
