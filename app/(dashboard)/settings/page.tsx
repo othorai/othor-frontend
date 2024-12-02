@@ -205,35 +205,169 @@ export default function SettingsPage() {
     }
   }, [activeOrganization, router, toast]);
 
+  const [teamMembersLoading, setTeamMembersLoading] = useState(false);
+
+  // Update the fetchTeamMembers function
   const fetchTeamMembers = useCallback(async () => {
-    if (!activeOrganization) {
+    if (!activeOrganization?.id) {
       setTeamMembers([]);
       return;
     }
-
+  
     try {
+      setTeamMembersLoading(true);
       const token = localStorage.getItem('authToken');
+      if (!token) {
+        router.push('/login');
+        return;
+      }
+  
+      console.log('Fetching team members for org:', activeOrganization.id);
+  
       const response = await fetch(`/api/organizations/${activeOrganization.id}/users`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
+        cache: 'no-store'
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch team members');
-      }
-
+  
       const data = await response.json();
-      setTeamMembers(data);
+      console.log('Team members response:', data);
+  
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fetch team members');
+      }
+  
+      if (Array.isArray(data)) {
+        setTeamMembers(data);
+      } else {
+        console.warn('Unexpected response format:', data);
+        setTeamMembers([]);
+      }
     } catch (error) {
       console.error('Error fetching team members:', error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to fetch team members"
+        description: error instanceof Error ? error.message : "Failed to fetch team members"
+      });
+      setTeamMembers([]);
+    } finally {
+      setTeamMembersLoading(false);
+    }
+  }, [activeOrganization?.id, router, toast]);
+  
+  // Update useEffect
+  useEffect(() => {
+    if (activeOrganization?.id) {
+      console.log('Active organization changed, fetching team members'); // Debug log
+      fetchTeamMembers();
+    }
+  }, [activeOrganization?.id, fetchTeamMembers]);
+  
+  // Add these team-related functions
+  const handleAddMember = async (emailData: { email: string }) => {
+    try {
+      const token = localStorage.getItem('authToken');
+      if (!token || !activeOrganization) {
+        toast({
+          title: "Error",
+          description: "Please select an organization first",
+          variant: "destructive",
+        });
+        return;
+      }
+  
+      // First find the user by email
+      const findUserResponse = await fetch('/api/auth/find-user', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: emailData.email })
+      });
+  
+      if (!findUserResponse.ok) {
+        const error = await findUserResponse.json();
+        throw new Error(error.message || 'Failed to find user');
+      }
+  
+      const userData = await findUserResponse.json();
+  
+      // Then add the user to the organization
+      const response = await fetch(`/api/organizations/${activeOrganization.id}/users`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userId: userData.id })
+      });
+  
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to add user to organization');
+      }
+  
+      toast({
+        title: "Success",
+        description: "Team member added successfully"
+      });
+  
+      // Refresh team members list
+      fetchTeamMembers();
+      setIsCreateOrgModalOpen(false);
+    } catch (error) {
+      console.error('Error adding team member:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to add team member"
       });
     }
-  }, [activeOrganization, toast]);
+  };
+  
+  const handleRemoveUser = async (userId: string) => {
+    try {
+      if (!activeOrganization) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "No active organization selected"
+        });
+        return;
+      }
+  
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(`/api/organizations/${activeOrganization.id}/users/${userId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+  
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to remove team member');
+      }
+  
+      toast({
+        title: "Success",
+        description: "Team member removed successfully"
+      });
+  
+      // Refresh team members list
+      fetchTeamMembers();
+    } catch (error) {
+      console.error('Error removing team member:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to remove team member"
+      });
+    }
+  };
 
   const handleCreateOrg = async () => {
     if (!newOrgName.trim()) {
@@ -436,32 +570,59 @@ export default function SettingsPage() {
     <Card className="p-6">
       <div className="space-y-6">
         <div className="flex justify-between items-center">
-          <h3 className="text-lg font-medium">Team Members</h3>
-          <Button>
-            <Plus className="w-4 h-4 mr-2" />
-            Add Member
-          </Button>
+          <div>
+            <h3 className="text-lg font-medium">Team Members</h3>
+            {activeOrganization && (
+              <p className="text-sm text-muted-foreground mt-1">
+                {activeOrganization.name}
+              </p>
+            )}
+          </div>
+          {currentUser?.is_admin && (
+            <Button onClick={() => setIsCreateOrgModalOpen(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              Add Member
+            </Button>
+          )}
         </div>
-        <div className="space-y-4">
-          {teamMembers.map((member) => (
-            <div key={member.id} className="flex items-center justify-between py-2">
-              <div>
-                <p className="font-medium">{member.username || member.email}</p>
-                <p className="text-sm text-muted-foreground">{member.email}</p>
+  
+        {teamMembersLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {teamMembers.length > 0 ? (
+              teamMembers.map((member) => (
+                <div key={member.id} className="flex items-center justify-between py-2">
+                  <div>
+                    <p className="font-medium">{member.username || member.email}</p>
+                    <p className="text-sm text-muted-foreground">{member.email}</p>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    {member.is_admin && (
+                      <Badge>Admin</Badge>
+                    )}
+                    {currentUser?.is_admin && !member.is_admin && member.id !== currentUser.id && (
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="text-red-600 hover:text-red-700"
+                        onClick={() => handleRemoveUser(member.id)}
+                      >
+                        Remove
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="text-center text-muted-foreground py-8">
+                No team members found
               </div>
-              <div className="flex items-center space-x-2">
-                {member.is_admin && (
-                  <Badge>Admin</Badge>
-                )}
-                {currentUser?.is_admin && !member.is_admin && (
-                  <Button variant="ghost" size="sm" className="text-red-600">
-                    Remove
-                  </Button>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
+            )}
+          </div>
+        )}
       </div>
     </Card>
   );
