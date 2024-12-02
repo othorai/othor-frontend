@@ -69,7 +69,7 @@ const Sidebar = ({ activeSidebarItem, setActiveSidebarItem, handleLogout }) => (
     </div>
     <nav className="space-y-1 px-3">
       {[
-        { name: 'Organization', icon: Building2 },
+        { name: 'Workspaces', icon: Building2 },
         { name: 'Data sources', icon: Database },
         { name: 'Team', icon: Users },
         { name: 'Logout', icon: LogOut, className: 'text-red-600 hover:text-red-700' }
@@ -78,7 +78,7 @@ const Sidebar = ({ activeSidebarItem, setActiveSidebarItem, handleLogout }) => (
           key={item.name}
           onClick={() => item.name === 'Logout' ? handleLogout() : setActiveSidebarItem(item.name)}
           className={`
-            flex items-center w-full px-3 py-2 text-sm rounded-md transition-colors
+            flex items-center w-full px-3 py-2 text-base rounded-md transition-colors
             ${activeSidebarItem === item.name 
               ? 'bg-primary/10 text-primary' 
               : 'text-muted-foreground hover:bg-muted'}
@@ -94,7 +94,7 @@ const Sidebar = ({ activeSidebarItem, setActiveSidebarItem, handleLogout }) => (
 );
 
 export default function SettingsPage() {
-  const [activeSidebarItem, setActiveSidebarItem] = useState('Organization');
+  const [activeSidebarItem, setActiveSidebarItem] = useState('Workspaces');
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [activeOrganization, setActiveOrganization] = useState<Organization | null>(null);
   const [currentUser, setCurrentUser] = useState(null);
@@ -149,7 +149,7 @@ export default function SettingsPage() {
         },
       });
       
-      if (!response.ok) throw new Error('Failed to fetch organizations');
+      if (!response.ok) throw new Error('Failed to fetch workspaces');
       
       const data = await response.json();
       setOrganizations(data);
@@ -158,11 +158,11 @@ export default function SettingsPage() {
         setActiveOrganization(data[0]);
       }
     } catch (error) {
-      console.error('Error fetching organizations:', error);
+      console.error('Error fetching workspaces:', error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to fetch organizations"
+        description: "Failed to fetch workspaces"
       });
     }
   };
@@ -240,7 +240,7 @@ export default function SettingsPage() {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Organization name is required"
+        description: "Workspace name is required"
       });
       return;
     }
@@ -256,7 +256,7 @@ export default function SettingsPage() {
         body: JSON.stringify({ name: newOrgName }),
       });
 
-      if (!response.ok) throw new Error('Failed to create organization');
+      if (!response.ok) throw new Error('Failed to create workspace');
 
       const newOrg = await response.json();
       setOrganizations(prev => [...prev, newOrg]);
@@ -264,14 +264,14 @@ export default function SettingsPage() {
       setIsCreateOrgModalOpen(false);
       toast({
         title: "Success",
-        description: "Organization created successfully"
+        description: "workspace created successfully"
       });
     } catch (error) {
-      console.error('Error creating organization:', error);
+      console.error('Error creating workspace:', error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to create organization"
+        description: "Failed to create workspace"
       });
     }
   };
@@ -286,21 +286,21 @@ export default function SettingsPage() {
         },
       });
 
-      if (!response.ok) throw new Error('Failed to switch organization');
+      if (!response.ok) throw new Error('Failed to switch workspace');
 
       const data = await response.json();
       localStorage.setItem('authToken', data.access_token);
       setActiveOrganization(organizations.find(org => org.id === orgId));
       toast({
         title: "Success",
-        description: "Organization switched successfully"
+        description: "Workspace switched successfully"
       });
     } catch (error) {
-      console.error('Error switching organization:', error);
+      console.error('Error switching workspace:', error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to switch organization"
+        description: "Failed to switch workspace"
       });
     }
   };
@@ -352,10 +352,10 @@ export default function SettingsPage() {
     <Card className="p-6">
       <div className="space-y-6">
         <div className="flex justify-between items-center">
-          <h3 className="text-lg font-medium">Organizations</h3>
+          <h3 className="text-lg font-medium">Workspaces</h3>
           <Button onClick={() => setIsCreateOrgModalOpen(true)}>
             <Plus className="w-4 h-4 mr-2" />
-            Create Organization
+            Create Workspace
           </Button>
         </div>
         <div className="divide-y">
@@ -475,7 +475,7 @@ export default function SettingsPage() {
       />
       <main className="flex-1 overflow-y-auto p-8">
         <div className="max-w-5xl mx-auto space-y-6">
-          {isLoading ? (
+        {isLoading ? (
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4" />
@@ -484,7 +484,7 @@ export default function SettingsPage() {
             </div>
           ) : (
             <>
-              {activeSidebarItem === 'Organization' && <OrganizationsList />}
+              {activeSidebarItem === 'Workspaces' && <OrganizationsList />}
               {activeSidebarItem === 'Data sources' && <DataSourcesList />}
               {activeSidebarItem === 'Team' && <TeamList />}
             </>
@@ -495,16 +495,16 @@ export default function SettingsPage() {
       <Dialog open={isCreateOrgModalOpen} onOpenChange={setIsCreateOrgModalOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Create New Organization</DialogTitle>
+            <DialogTitle>Create New Workspace</DialogTitle>
             <DialogDescription>
-              Enter the name for your new organization.
+              Enter the name for your new Workspace.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
               <Input
                 id="name"
-                placeholder="Organization name"
+                placeholder="Worskpace name"
                 value={newOrgName}
                 onChange={(e) => setNewOrgName(e.target.value)}
               />
