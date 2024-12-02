@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Star } from 'lucide-react';
 import MetricCard from '@/components/metrics/MetricCard';
 import type { MetricData } from '@/components/metrics/MetricCard';
+import { ChevronLeft } from 'lucide-react'; // Add this import
 
 const currentScopeOptions = [
   { label: 'This Week', value: 'this_week' },
@@ -228,7 +229,20 @@ function MetricsPage() {
     <div className="p-8">
       <div className="max-w-7xl mx-auto">
         <div className="mb-8 flex justify-between items-center">
-          <h1 className="text-2xl font-bold">Metrics Overview</h1>
+          {selectedMetric ? (
+            <div className="flex items-center gap-4">
+              <button 
+                onClick={() => handleMetricSelect(selectedMetric)} // This will toggle it off
+                className="flex items-center gap-2 text-sm hover:text-primary transition-colors"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Back to Overview
+              </button>
+            </div>
+          ) : (
+            <h1 className="text-2xl font-bold">Metrics Overview</h1>
+          )}
+          
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-2 text-sm text-muted-foreground">
               <Star className="h-4 w-4" />
@@ -253,26 +267,40 @@ function MetricsPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {Object.entries(metricCards || {}).map(([key, data]) => (
-            <MetricCard
-              key={key}
-              title={key.split('_').map(word => 
-                word.charAt(0).toUpperCase() + word.slice(1)
-              ).join(' ')}
-              data={data}
-              onExpand={() => handleMetricSelect(key)}
-              isExpanded={selectedMetric === key}
-              forecastEnabled={forecastableMetrics.includes(key.toLowerCase())}
-              isForecast={isForecast}
-              scope={scope}
-              resolution={resolution}
-              onScopeChange={setScope}
-              onResolutionChange={setResolution}
-              scopeOptions={isForecast ? forecastScopeOptions : currentScopeOptions}
-              resolutionOptions={resolutionOptions}
-            />
-          ))}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 auto-rows-fr">
+          {Object.entries(metricCards || {}).map(([key, data]) => {
+            const isSelected = selectedMetric === key;
+            
+            return (
+              <div 
+                key={key}
+                className={`${
+                  isSelected 
+                    ? 'col-span-full row-start-1'
+                    : selectedMetric 
+                      ? 'col-span-1' 
+                      : 'col-span-1'
+                }`}
+              >
+                <MetricCard
+                  title={key.split('_').map(word => 
+                    word.charAt(0).toUpperCase() + word.slice(1)
+                  ).join(' ')}
+                  data={data}
+                  onExpand={() => handleMetricSelect(key)}
+                  isExpanded={isSelected}
+                  forecastEnabled={forecastableMetrics.includes(key.toLowerCase())}
+                  isForecast={isForecast}
+                  scope={scope}
+                  resolution={resolution}
+                  onScopeChange={setScope}
+                  onResolutionChange={setResolution}
+                  scopeOptions={isForecast ? forecastScopeOptions : currentScopeOptions}
+                  resolutionOptions={resolutionOptions}
+                />
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
