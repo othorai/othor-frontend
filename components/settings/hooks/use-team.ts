@@ -25,12 +25,13 @@ export function useTeam(): UseTeamReturn {
   const router = useRouter();
   const { toast } = useToast();
 
-  const fetchTeamMembers = useCallback(async (organizationId: string) => {
+  // In components/settings/hooks/use-team.ts
+const fetchTeamMembers = useCallback(async (organizationId: string) => {
     if (!organizationId) {
       setTeamMembers([]);
       return;
     }
-
+  
     try {
       setIsLoading(true);
       const token = localStorage.getItem('authToken');
@@ -38,38 +39,23 @@ export function useTeam(): UseTeamReturn {
         router.push('/login');
         return;
       }
-
-      console.log('Fetching team members for org:', organizationId);
-
-      // Updated path to match the API route
-      const response = await fetch(`/api/organizations/${organizationId}/users`, {
+  
+      const response = await fetch(`/api/v1/organizations/${organizationId}/users`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
         cache: 'no-store'
       });
-
+  
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        console.error('API Error Response:', {
-          status: response.status,
-          statusText: response.statusText,
-          error: errorData
-        });
         throw new Error(`Failed to fetch team members: ${response.status}`);
       }
-
+  
       const data = await response.json();
-      console.log('Team members response:', data);
-
-      if (Array.isArray(data)) {
-        setTeamMembers(data);
-      } else if (data.users && Array.isArray(data.users)) {
-        setTeamMembers(data.users);
-      } else {
-        console.warn('Unexpected response format:', data);
-        setTeamMembers([]);
-      }
+      
+      // The API returns array directly, so we can set it straight to state
+      setTeamMembers(data);
+      
     } catch (error) {
       console.error('Error fetching team members:', error);
       setTeamMembers([]);

@@ -1,9 +1,9 @@
-// components/settings/team/team-list.tsx
-import { FC } from 'react';
+import { FC, useState } from 'react';
 import { Plus } from 'lucide-react';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { AddMemberModal } from './add-member-modal';
 
 interface Organization {
   id: string;
@@ -37,6 +37,18 @@ export const TeamList: FC<TeamListProps> = ({
   onRemoveMember,
   onUpdateMemberRole,
 }) => {
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isAddingMember, setIsAddingMember] = useState(false);
+
+  const handleAddMember = async (emailData: { email: string }) => {
+    setIsAddingMember(true);
+    try {
+      await onAddMember(emailData);
+    } finally {
+      setIsAddingMember(false);
+    }
+  };
+
   return (
     <Card className="p-6">
       <div className="space-y-6">
@@ -50,7 +62,7 @@ export const TeamList: FC<TeamListProps> = ({
             )}
           </div>
           {currentUser?.is_admin && (
-            <Button onClick={() => onAddMember({ email: '' })}>
+            <Button onClick={() => setIsAddModalOpen(true)}>
               <Plus className="w-4 h-4 mr-2" />
               Add Member
             </Button>
@@ -65,35 +77,40 @@ export const TeamList: FC<TeamListProps> = ({
           <div className="space-y-4">
             {teamMembers.length > 0 ? (
               teamMembers.map((member) => (
-                <div key={member.id} className="flex items-center justify-between py-2">
+                <div 
+                  key={member.id} 
+                  className="flex items-center justify-between py-3 border-b last:border-0"
+                >
                   <div>
                     <p className="font-medium">{member.username || member.email}</p>
                     {member.username && (
                       <p className="text-sm text-muted-foreground">{member.email}</p>
                     )}
                   </div>
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center gap-4">
                     {member.is_admin && (
                       <Badge variant="secondary">Admin</Badge>
                     )}
-                    {currentUser?.is_admin && !member.is_admin && member.id !== currentUser.id && (
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="text-red-600 hover:text-red-700"
-                        onClick={() => onRemoveMember(member.id)}
-                      >
-                        Remove
-                      </Button>
-                    )}
                     {currentUser?.is_admin && member.id !== currentUser.id && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onUpdateMemberRole(member.id, !member.is_admin)}
-                      >
-                        {member.is_admin ? 'Remove Admin' : 'Make Admin'}
-                      </Button>
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => onUpdateMemberRole(member.id, !member.is_admin)}
+                        >
+                          {member.is_admin ? 'Remove Admin' : 'Make Admin'}
+                        </Button>
+                        {!member.is_admin && (
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="text-red-600 hover:text-red-700"
+                            onClick={() => onRemoveMember(member.id)}
+                          >
+                            Remove
+                          </Button>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
@@ -106,6 +123,13 @@ export const TeamList: FC<TeamListProps> = ({
           </div>
         )}
       </div>
+
+      <AddMemberModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onSubmit={handleAddMember}
+        isLoading={isAddingMember}
+      />
     </Card>
   );
 };
