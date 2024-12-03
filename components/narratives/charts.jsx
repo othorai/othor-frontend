@@ -25,6 +25,45 @@ const formatValue = (value) => {
   return value.toFixed(2);
 };
 
+const CustomXAxisTick = ({ x, y, payload }) => {
+  const dateMatch = payload.value.match(/\((.*?)\)/);
+  const datePart = dateMatch ? dateMatch[1] : '';
+  const label = payload.value.includes('Current') ? 'Current' : 'Previous';
+
+  let formattedDate = datePart;
+  if (datePart.match(/\d{2}-\d{2}-\d{4}/)) {
+    const [day, month, year] = datePart.split('-');
+    const date = new Date(year, month - 1, day);
+    formattedDate = format(date, 'dd MMM yyyy');
+  }
+
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <text
+        x={0}
+        y={0}
+        dy={-15}
+        textAnchor="middle"
+        fill="#666666"
+        fontSize={12}
+        fontWeight="500"
+      >
+        {label}
+      </text>
+      <text
+        x={0}
+        y={0}
+        dy={5}
+        textAnchor="middle"
+        fill="#666666"
+        fontSize={12}
+      >
+        {formattedDate}
+      </text>
+    </g>
+  );
+};
+
 export function NarrativeChart({ data, title, timePeriod }) {
   // Memoize calculations to prevent unnecessary rerenders
   const {
@@ -49,7 +88,7 @@ export function NarrativeChart({ data, title, timePeriod }) {
       const date = new Date(year, month - 1, day);
       const prevDate = new Date(date);
       prevDate.setDate(prevDate.getDate() - 1);
-      previousDate = format(prevDate, 'dd MMM yy');
+      previousDate = format(prevDate, 'dd-MM-yyyy');
     }
 
     // Determine chart type
@@ -94,16 +133,14 @@ export function NarrativeChart({ data, title, timePeriod }) {
   const chartProps = useMemo(() => ({
     width: "100%",
     height: 300,
-    margin: { top: 20, right: 30, left: 30, bottom: 20 }
+    margin: { top: 20, right: 30, left: 30, bottom: 40 } // Increased bottom margin
   }), []);
 
   const axisProps = useMemo(() => ({
     xAxis: {
       dataKey: "name",
-      angle: -15,
-      textAnchor: "end",
-      height: 60,
-      tick: { fontSize: 12 }
+      height: 70, // Increased height for two lines
+      tick: CustomXAxisTick
     },
     yAxis: {
       tickFormatter: formatValue,

@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import { SuggestedQuestions } from './suggested-questions';
 
 export function NarrativeCard({
   title,
@@ -229,6 +230,16 @@ export function NarrativeCard({
             />
           </div>
         )}
+
+        {/* Add the SuggestedQuestions component */}
+<SuggestedQuestions
+  articleId={articleId}
+  title={title}
+  content={content}
+  category={category}
+  timePeriod={timePeriod}
+  metrics={graphData}
+/>
 
         {/* Card Actions */}
         <div className="flex items-center justify-between mt-6 pt-4">
