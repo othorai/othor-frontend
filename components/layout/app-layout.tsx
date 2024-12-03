@@ -22,9 +22,9 @@ const navigation = [
   { name: 'Home', href: '/home', icon: Home },
   { name: 'Chat', href: '/chat', icon: MessageSquare },
   { name: 'Charts', href: '/metrics', icon: BarChart2 },
-  { name: 'Planner', href: '/planner', icon: ListTodo },
-  { name: 'Documents', href: '/documents', icon: Folder },
-  { name: 'Forms', href: '/forms', icon: TableProperties },
+  // { name: 'Planner', href: '/planner', icon: ListTodo },
+  // { name: 'Documents', href: '/documents', icon: Folder },
+  // { name: 'Forms', href: '/forms', icon: TableProperties },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];
 
