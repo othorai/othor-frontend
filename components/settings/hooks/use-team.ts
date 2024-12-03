@@ -1,4 +1,3 @@
-// components/settings/hooks/use-team.ts
 import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from "@/hooks/use-toast";
@@ -25,13 +24,12 @@ export function useTeam(): UseTeamReturn {
   const router = useRouter();
   const { toast } = useToast();
 
-  // In components/settings/hooks/use-team.ts
-const fetchTeamMembers = useCallback(async (organizationId: string) => {
+  const fetchTeamMembers = useCallback(async (organizationId: string) => {
     if (!organizationId) {
       setTeamMembers([]);
       return;
     }
-  
+
     try {
       setIsLoading(true);
       const token = localStorage.getItem('authToken');
@@ -39,23 +37,20 @@ const fetchTeamMembers = useCallback(async (organizationId: string) => {
         router.push('/login');
         return;
       }
-  
-      const response = await fetch(`/api/v1/organizations/${organizationId}/users`, {
+
+      const response = await fetch(`/api/organizations/${organizationId}/users`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
-        cache: 'no-store'
       });
-  
+
       if (!response.ok) {
-        throw new Error(`Failed to fetch team members: ${response.status}`);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Failed to fetch team members: ${response.status}`);
       }
-  
+
       const data = await response.json();
-      
-      // The API returns array directly, so we can set it straight to state
       setTeamMembers(data);
-      
     } catch (error) {
       console.error('Error fetching team members:', error);
       setTeamMembers([]);
@@ -84,7 +79,6 @@ const fetchTeamMembers = useCallback(async (organizationId: string) => {
         return false;
       }
 
-      // Updated path to match the API route
       const response = await fetch(`/api/organizations/${organizationId}/users`, {
         method: 'POST',
         headers: {
@@ -193,7 +187,7 @@ const fetchTeamMembers = useCallback(async (organizationId: string) => {
       toast({
         variant: "destructive",
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to update member member"
+        description: error instanceof Error ? error.message : "Failed to update member role"
       });
       return false;
     }
