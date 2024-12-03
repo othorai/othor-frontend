@@ -3,7 +3,13 @@ import { FC } from 'react';
 import { Plus } from 'lucide-react';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { TeamMemberCard } from './team-member-card';
+import { Badge } from "@/components/ui/badge";
+
+interface Organization {
+  id: string;
+  name: string;
+  role?: string;
+}
 
 interface TeamMember {
   id: string;
@@ -12,18 +18,14 @@ interface TeamMember {
   is_admin: boolean;
 }
 
-interface Organization {
-  id: string;
-  name: string;
-}
-
 interface TeamListProps {
   teamMembers: TeamMember[];
   activeOrganization: Organization | null;
   currentUser: { id: string; is_admin: boolean } | null;
   isLoading: boolean;
-  onAddMember: () => void;
-  onRemoveMember: (userId: string) => void;
+  onAddMember: (emailData: { email: string }) => Promise<void>;
+  onRemoveMember: (userId: string) => Promise<void>;
+  onUpdateMemberRole: (userId: string, isAdmin: boolean) => Promise<void>;
 }
 
 export const TeamList: FC<TeamListProps> = ({
@@ -33,6 +35,7 @@ export const TeamList: FC<TeamListProps> = ({
   isLoading,
   onAddMember,
   onRemoveMember,
+  onUpdateMemberRole,
 }) => {
   return (
     <Card className="p-6">
@@ -47,7 +50,7 @@ export const TeamList: FC<TeamListProps> = ({
             )}
           </div>
           {currentUser?.is_admin && (
-            <Button onClick={onAddMember}>
+            <Button onClick={() => onAddMember({ email: '' })}>
               <Plus className="w-4 h-4 mr-2" />
               Add Member
             </Button>
@@ -62,13 +65,38 @@ export const TeamList: FC<TeamListProps> = ({
           <div className="space-y-4">
             {teamMembers.length > 0 ? (
               teamMembers.map((member) => (
-                <TeamMemberCard
-                  key={member.id}
-                  member={member}
-                  currentUserId={currentUser?.id || ''}
-                  isCurrentUserAdmin={currentUser?.is_admin || false}
-                  onRemove={onRemoveMember}
-                />
+                <div key={member.id} className="flex items-center justify-between py-2">
+                  <div>
+                    <p className="font-medium">{member.username || member.email}</p>
+                    {member.username && (
+                      <p className="text-sm text-muted-foreground">{member.email}</p>
+                    )}
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    {member.is_admin && (
+                      <Badge variant="secondary">Admin</Badge>
+                    )}
+                    {currentUser?.is_admin && !member.is_admin && member.id !== currentUser.id && (
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="text-red-600 hover:text-red-700"
+                        onClick={() => onRemoveMember(member.id)}
+                      >
+                        Remove
+                      </Button>
+                    )}
+                    {currentUser?.is_admin && member.id !== currentUser.id && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onUpdateMemberRole(member.id, !member.is_admin)}
+                      >
+                        {member.is_admin ? 'Remove Admin' : 'Make Admin'}
+                      </Button>
+                    )}
+                  </div>
+                </div>
               ))
             ) : (
               <div className="text-center text-muted-foreground py-8">

@@ -41,6 +41,7 @@ export function useTeam(): UseTeamReturn {
 
       console.log('Fetching team members for org:', organizationId);
 
+      // Updated path to match the API route
       const response = await fetch(`/api/organizations/${organizationId}/users`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -48,27 +49,35 @@ export function useTeam(): UseTeamReturn {
         cache: 'no-store'
       });
 
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('API Error Response:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorData
+        });
+        throw new Error(`Failed to fetch team members: ${response.status}`);
+      }
+
       const data = await response.json();
       console.log('Team members response:', data);
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to fetch team members');
-      }
-
       if (Array.isArray(data)) {
         setTeamMembers(data);
+      } else if (data.users && Array.isArray(data.users)) {
+        setTeamMembers(data.users);
       } else {
         console.warn('Unexpected response format:', data);
         setTeamMembers([]);
       }
     } catch (error) {
       console.error('Error fetching team members:', error);
+      setTeamMembers([]);
       toast({
         variant: "destructive",
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to fetch team members"
       });
-      setTeamMembers([]);
     } finally {
       setIsLoading(false);
     }
@@ -89,45 +98,27 @@ export function useTeam(): UseTeamReturn {
         return false;
       }
 
-      // First find the user by email
-      const findUserResponse = await fetch('/api/auth/find-user', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email: emailData.email })
-      });
-
-      if (!findUserResponse.ok) {
-        const error = await findUserResponse.json();
-        throw new Error(error.message || 'Failed to find user');
-      }
-
-      const userData = await findUserResponse.json();
-
-      // Then add the user to the organization
+      // Updated path to match the API route
       const response = await fetch(`/api/organizations/${organizationId}/users`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ userId: userData.id })
+        body: JSON.stringify(emailData)
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to add user to organization');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to add user to organization');
       }
 
+      await fetchTeamMembers(organizationId);
+      
       toast({
         title: "Success",
         description: "Team member added successfully"
       });
-
-      // Refresh team members list
-      await fetchTeamMembers(organizationId);
       return true;
     } catch (error) {
       console.error('Error adding team member:', error);
@@ -146,16 +137,19 @@ export function useTeam(): UseTeamReturn {
   ): Promise<boolean> => {
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch(`/api/organizations/${organizationId}/users/${userId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+      const response = await fetch(
+        `/api/organizations/${organizationId}/users/${userId}`,
+        {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        }
+      );
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to remove team member');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to remove team member');
       }
 
       setTeamMembers(prev => prev.filter(member => member.id !== userId));
@@ -195,8 +189,8 @@ export function useTeam(): UseTeamReturn {
       );
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to update member role');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update member role');
       }
 
       setTeamMembers(prev => prev.map(member => 
@@ -213,7 +207,7 @@ export function useTeam(): UseTeamReturn {
       toast({
         variant: "destructive",
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to update member role"
+        description: error instanceof Error ? error.message : "Failed to update member member"
       });
       return false;
     }
