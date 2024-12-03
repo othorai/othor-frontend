@@ -14,6 +14,7 @@ interface UseOrganizationReturn {
   activeOrganization: Organization | null;
   currentUser: any;
   isLoading: boolean;
+  initializeData: () => Promise<void>;
   fetchCurrentUser: () => Promise<void>;
   fetchUserOrganizations: () => Promise<void>;
   handleCreateOrg: (name: string) => Promise<boolean>;
@@ -32,7 +33,7 @@ export function useOrganization(): UseOrganizationReturn {
   const router = useRouter();
   const { toast } = useToast();
 
-  const fetchCurrentUser = async () => {
+  const fetchCurrentUser = useCallback(async () => {
     const token = localStorage.getItem('authToken');
     if (!token) {
       router.push('/login');
@@ -40,6 +41,7 @@ export function useOrganization(): UseOrganizationReturn {
     }
 
     try {
+      console.log('Fetching user data from API');
       const response = await fetch('/api/auth/me', {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -53,6 +55,7 @@ export function useOrganization(): UseOrganizationReturn {
       }
 
       const userData = await response.json();
+      console.log('User data fetched successfully');
       setCurrentUser(userData);
     } catch (error) {
       console.error('Error fetching user:', error);
@@ -62,13 +65,14 @@ export function useOrganization(): UseOrganizationReturn {
         description: error instanceof Error ? error.message : "Failed to fetch user information"
       });
     }
-  };
+  }, [router, toast]);
 
-  const fetchUserOrganizations = async () => {
+  const fetchUserOrganizations = useCallback(async () => {
     const token = localStorage.getItem('authToken');
     if (!token) return;
 
     try {
+      console.log('Fetching organizations data');
       const response = await fetch('/api/organizations', {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -78,6 +82,7 @@ export function useOrganization(): UseOrganizationReturn {
       if (!response.ok) throw new Error('Failed to fetch workspaces');
       
       const data = await response.json();
+      console.log('Organizations data fetched successfully');
       setOrganizations(data);
       
       if (!activeOrganization && data.length > 0) {
@@ -91,7 +96,19 @@ export function useOrganization(): UseOrganizationReturn {
         description: "Failed to fetch workspaces"
       });
     }
-  };
+  }, [toast, activeOrganization]);
+
+  const initializeData = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      await Promise.all([
+        fetchCurrentUser(),
+        fetchUserOrganizations()
+      ]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [fetchCurrentUser, fetchUserOrganizations]);
 
   const handleCreateOrg = async (name: string): Promise<boolean> => {
     if (!name.trim()) {
@@ -236,6 +253,7 @@ export function useOrganization(): UseOrganizationReturn {
     activeOrganization,
     currentUser,
     isLoading,
+    initializeData,
     fetchCurrentUser,
     fetchUserOrganizations,
     handleCreateOrg,

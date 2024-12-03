@@ -42,8 +42,7 @@ export default function SettingsPage() {
     activeOrganization,
     currentUser,
     isLoading: isOrgLoading,
-    fetchCurrentUser,
-    fetchUserOrganizations,
+    initializeData,
     handleCreateOrg,
     handleSwitchOrganization,
     handleEditOrganization,
@@ -93,31 +92,22 @@ export default function SettingsPage() {
 
   // Effects
   useEffect(() => {
-    const initializeSettings = async () => {
-      try {
-        await Promise.all([
-          fetchUserOrganizations(),
-          fetchCurrentUser()
-        ]);
-      } catch (error) {
-        console.error('Error initializing settings:', error);
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Failed to load settings data"
-        });
-      }
-    };
-
-    initializeSettings();
-  }, [fetchUserOrganizations, fetchCurrentUser]);
+    console.log('Initializing settings data');
+    initializeData();
+  }, [initializeData]);
 
   useEffect(() => {
-    if (activeOrganization?.id) {
+    if (activeOrganization?.id && !isOrgLoading) {
+      console.log('Fetching organization-specific data');
       fetchDataSources(activeOrganization.id);
       fetchTeamMembers(activeOrganization.id);
     }
-  }, [activeOrganization?.id, fetchDataSources, fetchTeamMembers]);
+  }, [
+    activeOrganization?.id,
+    isOrgLoading,
+    fetchDataSources,
+    fetchTeamMembers
+  ]);
 
   // Loading state
   const isLoading = isOrgLoading || isDataSourceLoading || isTeamLoading;
