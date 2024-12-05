@@ -13,7 +13,7 @@ interface WorkspaceCardProps {
   organization: Organization;
   isActive: boolean;
   onSwitch: (orgId: string) => void;
-  onEdit: (orgId: string) => void;
+  onEdit: (orgId: string, name: string) => Promise<void>;
   onDelete: (orgId: string) => void;
 }
 
@@ -43,7 +43,7 @@ export const WorkspaceCard: FC<WorkspaceCardProps> = ({
         <Button 
           variant="outline" 
           size="sm"
-          onClick={() => onEdit(organization.id)}
+          onClick={() => onEdit(organization.id,organization.name)}
         >
           Edit
         </Button>

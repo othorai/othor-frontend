@@ -1,6 +1,8 @@
 import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from "@/hooks/use-toast";
+import { API_URL } from '@/lib/config';
+
 
 interface TeamMember {
   id: string;
@@ -38,7 +40,7 @@ export function useTeam(): UseTeamReturn {
         return;
       }
 
-      const response = await fetch(`/api/organizations/${organizationId}/users`, {
+      const response = await fetch(`${API_URL}/api/v1/organizations/${organizationId}/users`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -79,13 +81,13 @@ export function useTeam(): UseTeamReturn {
         return false;
       }
 
-      const response = await fetch(`/api/organizations/${organizationId}/users`, {
+      const response = await fetch(`${API_URL}/authorization/find-by-email`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(emailData)
+        body: JSON.stringify(emailData.email)
       });
 
       if (!response.ok) {
@@ -118,7 +120,7 @@ export function useTeam(): UseTeamReturn {
     try {
       const token = localStorage.getItem('authToken');
       const response = await fetch(
-        `/api/organizations/${organizationId}/users/${userId}`,
+        `${API_URL}/api/v1/organizations/${organizationId}/users/${userId}`,
         {
           method: 'DELETE',
           headers: {

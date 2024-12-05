@@ -2,6 +2,8 @@
 import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from "@/hooks/use-toast";
+import { API_URL } from '@/lib/config';
+
 
 interface ConnectionDetails {
   database: string;
@@ -46,7 +48,7 @@ export function useDataSource(): UseDataSourceReturn {
       }
 
       const response = await fetch(
-        `/api/data-source/${organizationId}/data-sources`,
+        `${API_URL}/data-source/organization/${organizationId}/data-sources`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -78,7 +80,7 @@ export function useDataSource(): UseDataSourceReturn {
   ): Promise<boolean> => {
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch(`/api/data-source/${organizationId}/data-sources`, {
+      const response = await fetch(`${API_URL}/data-source/organization/${organizationId}/data-sources`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -115,7 +117,7 @@ export function useDataSource(): UseDataSourceReturn {
     try {
       const token = localStorage.getItem('authToken');
       const response = await fetch(
-        `/api/data-source/${organizationId}/data-sources/${sourceId}`,
+        `${API_URL}/data-source/connections/${sourceId}`,
         {
           method: 'PUT',
           headers: {
@@ -155,7 +157,7 @@ export function useDataSource(): UseDataSourceReturn {
     try {
       const token = localStorage.getItem('authToken');
       const response = await fetch(
-        `/api/data-source/${organizationId}/data-sources/${sourceId}`,
+        `${API_URL}/data-source/connections/${sourceId}`,
         {
           method: 'DELETE',
           headers: {

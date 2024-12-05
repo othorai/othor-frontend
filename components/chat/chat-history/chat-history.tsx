@@ -1,4 +1,3 @@
-// components/chat/chat-history/chat-history.tsx
 import { MessageSquare } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { ChatGroup } from './chat-group';
@@ -17,6 +16,9 @@ interface ChatHistoryProps {
   onChatSelect: (id: string) => void;
 }
 
+type GroupKey = 'Today' | 'Yesterday' | 'Previous 7 days' | 'Previous 30 Days' | 'Older';
+type ChatGroups = Record<GroupKey, ChatSession[]>;
+
 export function ChatHistory({
   isLoading,
   chatHistory,
@@ -34,7 +36,7 @@ export function ChatHistory({
     const monthAgo = new Date(today);
     monthAgo.setMonth(monthAgo.getMonth() - 1);
 
-    const groups = {
+    const groups: ChatGroups = {
       'Today': [],
       'Yesterday': [],
       'Previous 7 days': [],
@@ -57,7 +59,7 @@ export function ChatHistory({
       }
     });
 
-    return Object.entries(groups).filter(([_, chats]) => chats.length > 0);
+    return Object.entries(groups).filter(([_, chats]) => chats.length > 0) as [string, ChatSession[]][];
   };
 
   return (

@@ -37,6 +37,25 @@ export default function SettingsPage() {
   const [activeSidebarItem, setActiveSidebarItem] = useState('Workspaces');
   const [isCreateOrgModalOpen, setIsCreateOrgModalOpen] = useState(false);
   const [newOrgName, setNewOrgName] = useState('');
+
+  const wrappedHandleEditOrganization = async (orgId: string, name: string) => {
+    await handleEditOrganization(orgId, name);
+  };
+
+  const wrappedHandleRemoveMember = async (userId: string) => {
+    if (!activeOrganization) return;
+    await handleRemoveMember(activeOrganization.id, userId);
+  };
+
+  const wrappedHandleUpdateMemberRole = async (userId: string, isAdmin: boolean) => {
+    if (!activeOrganization) return;
+    await handleUpdateMemberRole(activeOrganization.id, userId, isAdmin);
+  };
+
+  const handleEditWorkspaceWrapper = async (orgId: string, name: string) => {
+    await handleEditOrganization(orgId, name);
+    // Void the boolean return value
+  };
   
   // Hooks
   const router = useRouter();
@@ -168,7 +187,7 @@ export default function SettingsPage() {
                   activeOrganization={activeOrganization}
                   onCreateWorkspace={() => setIsCreateOrgModalOpen(true)}
                   onSwitchWorkspace={handleSwitchOrganization}
-                  onEditWorkspace={handleEditOrganization}
+                  onEditWorkspace={handleEditWorkspaceWrapper}
                   onDeleteWorkspace={handleDeleteOrganization}
                 />
               )}
@@ -192,15 +211,13 @@ export default function SettingsPage() {
                   activeOrganization={activeOrganization}
                   currentUser={currentUser}
                   isLoading={isTeamLoading}
-                  onAddMember={(emailData) => 
-                    activeOrganization && handleAddMember(activeOrganization.id, emailData)
-                  }
-                  onRemoveMember={(userId) => 
-                    activeOrganization && handleRemoveMember(activeOrganization.id, userId)
-                  }
-                  onUpdateMemberRole={(userId, isAdmin) =>
-                    activeOrganization && handleUpdateMemberRole(activeOrganization.id, userId, isAdmin)
-                  }
+                  onAddMember={async (emailData) => {
+                    if (!activeOrganization) return;
+                    await handleAddMember(activeOrganization.id, emailData);
+                  }}
+                  onRemoveMember={wrappedHandleRemoveMember}
+                  onUpdateMemberRole={wrappedHandleUpdateMemberRole}
+        
                 />
               )}
             </>

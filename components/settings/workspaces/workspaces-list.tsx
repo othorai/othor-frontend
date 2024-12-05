@@ -16,7 +16,7 @@ interface WorkspacesListProps {
   activeOrganization: Organization | null;
   onCreateWorkspace: () => void;
   onSwitchWorkspace: (orgId: string) => void;
-  onEditWorkspace: (orgId: string) => void;
+  onEditWorkspace: (orgId: string, name: string) => Promise<void>;
   onDeleteWorkspace: (orgId: string) => void;
 }
 

@@ -2,11 +2,18 @@
 import { useState, useCallback } from 'react';
 import { format } from 'date-fns';
 import { useToast } from "@/hooks/use-toast";
+import { API_URL } from '@/lib/config';
+import type { 
+  Article, 
+  ApiError, 
+  FeedResponse, 
+  UseFeedReturn 
+} from '@/types/feed';
 
-export function useFeed() {
-  const [feedData, setFeedData] = useState([]);
+export function useFeed(): UseFeedReturn {
+  const [feedData, setFeedData] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const { toast } = useToast();
 
@@ -16,18 +23,18 @@ export function useFeed() {
       const token = localStorage.getItem('authToken');
       const formattedDate = format(date, 'yyyy-MM-dd');
       
-      const response = await fetch(`/api/narrative/feed?date=${formattedDate}`, {
+      const response = await fetch(`${API_URL}/narrative/feed?date=${formattedDate}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
       });
       
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to fetch narratives');
+        const errorData = await response.json() as ApiError;
+        throw new Error(errorData.message || 'Failed to fetch narratives');
       }
       
-      const data = await response.json();
+      const data = await response.json() as FeedResponse;
       
       if (data.articles && Array.isArray(data.articles)) {
         setFeedData(data.articles.map(article => ({
@@ -40,7 +47,7 @@ export function useFeed() {
       }
     } catch (error) {
       console.error('Error fetching data:', error);
-      setError(error.message);
+      setError(error instanceof Error ? error.message : 'An unknown error occurred');
       setFeedData([]);
     } finally {
       setLoading(false);
@@ -48,10 +55,10 @@ export function useFeed() {
     }
   }, []);
 
-  const handleLike = async (articleId, isLiked) => {
+  const handleLike = async (articleId: string, isLiked: boolean) => {
     try {
       const token = localStorage.getItem('authToken');
-      const endpoint = isLiked ? '/api/narrative/unlike' : '/api/narrative/like';
+      const endpoint = isLiked ? `${API_URL}/authorization/unlike` : `${API_URL}/authorization/like`;
       
       const response = await fetch(`${endpoint}/${articleId}`, {
         method: isLiked ? 'DELETE' : 'POST',
@@ -80,7 +87,7 @@ export function useFeed() {
     }
   };
 
-  const handleDownload = async (articleId) => {
+  const handleDownload = async (articleId:string) => {
     // Implement PDF download logic
   };
 

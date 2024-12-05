@@ -2,6 +2,8 @@
 import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from "@/hooks/use-toast";
+import { API_URL } from '@/lib/config';
+
 
 interface Organization {
   id: string;
@@ -42,7 +44,7 @@ export function useOrganization(): UseOrganizationReturn {
 
     try {
       console.log('Fetching user data from API');
-      const response = await fetch('/api/auth/me', {
+      const response = await fetch(`${API_URL}/authorization/me`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Accept': 'application/json',
@@ -73,7 +75,7 @@ export function useOrganization(): UseOrganizationReturn {
 
     try {
       console.log('Fetching organizations data');
-      const response = await fetch('/api/organizations', {
+      const response = await fetch(`${API_URL}/api/v1/organizations/`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -122,7 +124,7 @@ export function useOrganization(): UseOrganizationReturn {
 
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch('/api/organizations', {
+      const response = await fetch(`${API_URL}/api/v1/organizations/`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -154,10 +156,11 @@ export function useOrganization(): UseOrganizationReturn {
   const handleSwitchOrganization = async (orgId: string): Promise<boolean> => {
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch(`/api/organizations/${orgId}/switch`, {
+      const response = await fetch(`${API_URL}/authorization/switch-organization/${orgId}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
         },
       });
 
@@ -185,7 +188,7 @@ export function useOrganization(): UseOrganizationReturn {
   const handleEditOrganization = async (orgId: string, name: string): Promise<boolean> => {
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch(`/api/organizations/${orgId}`, {
+      const response = await fetch(`${API_URL}/api/v1/organizations/${orgId}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -219,7 +222,7 @@ export function useOrganization(): UseOrganizationReturn {
   const handleDeleteOrganization = async (orgId: string): Promise<boolean> => {
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch(`/api/organizations/${orgId}`, {
+      const response = await fetch(`${API_URL}/api/v1/organizations/${orgId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,

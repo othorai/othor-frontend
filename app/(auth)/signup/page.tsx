@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from 'lucide-react';
+import { API_URL } from '@/lib/config';
 
 export default function SignupPage() {
   const [email, setEmail] = useState('');
@@ -121,7 +122,7 @@ export default function SignupPage() {
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/auth/signup', {
+      const response = await fetch(`${API_URL}/authorization/signup`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

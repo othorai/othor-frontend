@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from 'lucide-react';
+import { useAuth } from '@/context/auth-context';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -16,14 +17,7 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
-
-  useEffect(() => {
-    // Check if already logged in
-    const token = localStorage.getItem('authToken');
-    if (token) {
-      router.push('/home');
-    }
-  }, [router]);
+  const { login } = useAuth();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,32 +26,9 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email,
-          password,
-        }),
-      });
-
-      const data = await response.json();
-      console.log('Login response:', data);
-
-      if (!response.ok) {
-        throw new Error(data.detail || 'Login failed');
-      }
-
-      if (!data.access_token) {
-        throw new Error('No access token received');
-      }
-
-      // Save token
-      localStorage.setItem('authToken', data.access_token);
+      await login(email, password);
       
-      // Save remember me preferences
+      // Handle remember me preferences
       if (rememberMe) {
         localStorage.setItem('savedEmail', email);
         localStorage.setItem('rememberMe', 'true');
@@ -66,14 +37,10 @@ export default function LoginPage() {
         localStorage.removeItem('rememberMe');
       }
 
-      // Show success message
       toast({
         title: "Login successful",
         description: "Redirecting to dashboard...",
       });
-
-      // Important: Force a hard redirect
-      window.location.href = '/home';
       
     } catch (error) {
       console.error('Login error:', error);
@@ -93,7 +60,7 @@ export default function LoginPage() {
         <CardHeader className="space-y-1">
           <div className="flex justify-center mb-8">
             <Image
-              src="/images/othor-logo.png" // Updated image path
+              src="/images/othor-logo.png"
               alt="Othor AI"
               width={200}
               height={48}

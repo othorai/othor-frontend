@@ -5,6 +5,7 @@ import { MetricChart } from '@/components/charts/metric-charts';
 import { Button } from '@/components/ui/button';
 import { useToast } from "@/hooks/use-toast";
 import { Star } from 'lucide-react';
+import { API_URL } from '@/lib/config';
 
 export interface MetricData {
   percentage_change: number;
@@ -75,7 +76,7 @@ const MetricCard = ({
         const token = localStorage.getItem('authToken');
         if (!token) return;
   
-        const endpoint = isForecast ? '/api/metrics/single_metric_forecast' : '/api/metrics/single_metric_card';
+        const endpoint = isForecast ? `${API_URL}/metrics/metric_forecast` : `${API_URL}/metrics/single_metric_card`;
         const metricKey = title.toLowerCase().replace(/ /g, '_');
         
         const response = await fetch(

@@ -1,4 +1,3 @@
-// components/organization-switcher.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -67,7 +66,7 @@ export function OrganizationSwitcher() {
         return;
       }
 
-      const response = await fetch('/api/organizations', {
+      const response = await fetch(`${API_URL}/api/v1/organizations/`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -82,7 +81,7 @@ export function OrganizationSwitcher() {
       if (data?.length > 0) {
         const currentOrgId = localStorage.getItem('currentOrgId');
         const activeOrg = currentOrgId 
-          ? data.find(org => org.id === currentOrgId)
+          ? data.find((org: Organization) => org.id === currentOrgId)
           : data[0];
           
         if (activeOrg) {
@@ -116,7 +115,7 @@ export function OrganizationSwitcher() {
       }
 
       // Find the new organization before making the API call
-      const newActiveOrg = organizations.find(org => org.id === orgId);
+      const newActiveOrg = organizations.find((org: Organization) => org.id === orgId);
       if (!newActiveOrg) {
         throw new Error('Organization not found');
       }
@@ -184,7 +183,7 @@ export function OrganizationSwitcher() {
         </SelectValue>
       </SelectTrigger>
       <SelectContent>
-        {organizations.map((org) => (
+        {organizations.map((org: Organization) => (
           <SelectItem 
             key={org.id} 
             value={org.id}
