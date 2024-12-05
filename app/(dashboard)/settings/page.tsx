@@ -4,6 +4,12 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from "@/hooks/use-toast";
+import { 
+  Sheet,
+  SheetContent,
+  SheetTrigger, SheetTitle
+} from "@/components/ui/sheet";
+import { Menu } from "lucide-react";
 
 // Custom hooks
 import { useOrganization } from '@/components/settings/hooks/use-organization';
@@ -114,11 +120,37 @@ export default function SettingsPage() {
 
   return (
     <div className="flex h-screen bg-background">
-      <Sidebar 
-        activeSidebarItem={activeSidebarItem}
-        setActiveSidebarItem={setActiveSidebarItem}
-        handleLogout={handleLogout}
-      />
+      {/* Mobile Sidebar */}
+      <div className="md:hidden fixed top-4 left-4 z-[60]">
+        <Sheet>
+          <SheetTrigger asChild>
+            <Button variant="outline" size="icon">
+              <Menu className="h-6 w-6" />
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="left" className="w-64 p-0">
+            <SheetTitle className="sr-only">Settings Menu</SheetTitle>
+            <Sidebar 
+              activeSidebarItem={activeSidebarItem}
+              setActiveSidebarItem={(item) => {
+                setActiveSidebarItem(item);
+                const closeButton = document.querySelector('[data-sheet-close]') as HTMLButtonElement;
+                closeButton?.click();
+              }}
+              handleLogout={handleLogout}
+            />
+          </SheetContent>
+        </Sheet>
+      </div>
+
+      {/* Desktop Sidebar */}
+      <div className="hidden md:block">
+        <Sidebar 
+          activeSidebarItem={activeSidebarItem}
+          setActiveSidebarItem={setActiveSidebarItem}
+          handleLogout={handleLogout}
+        />
+      </div>
       <main className="flex-1 overflow-y-auto p-8">
         <div className="max-w-5xl mx-auto space-y-6">
           {isLoading ? (

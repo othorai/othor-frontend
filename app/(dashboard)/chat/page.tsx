@@ -4,11 +4,18 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from "@/hooks/use-toast";
+import { 
+  Sheet,
+  SheetContent,
+  SheetTrigger, SheetTitle
+} from "@/components/ui/sheet";
+import { Menu } from "lucide-react";
 
 // Components
 import { ChatHistory } from '@/components/chat/chat-history/chat-history';
 import { MessageList } from '@/components/chat/chat-messages/message-list';
 import { ChatInputContainer } from '@/components/chat/chat-input/chat-input-container';
+import { Button } from "@/components/ui/button";
 import { DocumentContainer } from '@/components/chat/document-sidebar/document-container';
 
 // Types
@@ -311,42 +318,69 @@ const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
 
   return (
     // Update the main container height class
-<div className="flex h-[calc(100vh-3rem)] md:h-[calc(100vh-5rem)]">
-  <ChatHistory
-    isLoading={isLoadingHistory}
-    chatHistory={chatHistory}
-    selectedChatId={selectedChatId}
-    onNewChat={handleNewChat}
-    onChatSelect={handleChatSelect}
-  />
-
-  <div className="flex-1 flex flex-col min-h-0 relative">
-    <MessageList
-      messages={messages}
-      showLogo={showLogo}
-    />
-
-    <div className="absolute bottom-0 left-0 right-0 mb-20 md:mb-0">
-      <ChatInputContainer
-        inputText={inputText}
-        setInputText={setInputText}
-        onSend={handleSendMessage}
-        onFileUpload={handleFileUpload}
-        isLoading={isLoading}
-        isUploading={uploadingFile}
-        suggestions={suggestions}
-        showSuggestions={showSuggestions}
-        documents={documents}
-        maxFileSize={MAX_FILE_SIZE}
-      />
-    </div>
+<div className="flex h-[calc(100vh-2rem)] md:h-[calc(100vh-5rem)]">
+<div className="md:hidden fixed top-4 left-4 z-[60]">
+    <Sheet>
+      <SheetTrigger asChild>
+        <Button variant="outline" size="icon">
+          <Menu className="h-6 w-6" />
+        </Button>
+      </SheetTrigger>
+      <SheetContent side="left" className="w-80 p-0">
+        <SheetTitle className="sr-only">Chat History</SheetTitle>
+        <div className="h-full overflow-y-auto">
+          <ChatHistory
+            isLoading={isLoadingHistory}
+            chatHistory={chatHistory}
+            selectedChatId={selectedChatId}
+            onNewChat={handleNewChat}
+            onChatSelect={(id) => {
+              handleChatSelect(id);
+              const closeButton = document.querySelector('[data-sheet-close]') as HTMLButtonElement;
+              closeButton?.click();
+            }}
+          />
+        </div>
+      </SheetContent>
+    </Sheet>
   </div>
 
-  <DocumentContainer
-    documents={documents}
-    showSidebar={showDocumentSidebar}
-    onCloseSidebar={() => setShowDocumentSidebar(false)}
-  />
-</div>
+
+      {/* Desktop Chat History */}
+      <div className="hidden md:block">
+        <ChatHistory
+          isLoading={isLoadingHistory}
+          chatHistory={chatHistory}
+          selectedChatId={selectedChatId}
+          onNewChat={handleNewChat}
+          onChatSelect={handleChatSelect}
+        />
+      </div>
+
+      {/* Rest of the layout remains same */}
+      <div className="flex-1 flex flex-col min-h-0 relative">
+        <MessageList messages={messages} showLogo={showLogo} />
+        <div className="absolute bottom-0 left-0 right-0 mb-20 md:mb-0">
+        <ChatInputContainer
+  inputText={inputText}
+  setInputText={setInputText}
+  onSend={handleSendMessage}
+  onFileUpload={handleFileUpload}
+  isLoading={isLoading}
+  isUploading={uploadingFile}
+  suggestions={suggestions}
+  showSuggestions={showSuggestions}
+  documents={documents}
+  maxFileSize={MAX_FILE_SIZE}
+/>
+        </div>
+      </div>
+
+      <DocumentContainer
+        documents={documents}
+        showSidebar={showDocumentSidebar}
+        onCloseSidebar={() => setShowDocumentSidebar(false)}
+      />
+    </div>
   );
 }

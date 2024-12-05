@@ -61,7 +61,7 @@ export function ChatHistory({
   };
 
   return (
-    <div className="w-64 border-r bg-white hidden md:flex flex-col h-full">
+    <div className="w-64 border-r bg-white  flex-col h-full">
       {/* New Chat Button */}
       <div className="flex-shrink-0 p-4 border-b">
         <Button 
