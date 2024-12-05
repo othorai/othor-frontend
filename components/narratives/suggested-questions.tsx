@@ -5,6 +5,7 @@ import { StarIcon } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { API_URL } from '@/lib/config';
 
 interface SuggestedQuestionsProps {
   articleId: string;
@@ -34,7 +35,7 @@ export function SuggestedQuestions({
     try {
       setIsLoading(true);
       const token = localStorage.getItem('authToken');
-      const response = await fetch(`/api/narrative/${articleId}/suggested-questions`, {
+      const response = await fetch(`${API_URL}/narrative/article/${articleId}/suggested_questions`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -62,7 +63,7 @@ export function SuggestedQuestions({
       setIsLoading(true);
 
       const token = localStorage.getItem('authToken');
-      const response = await fetch('/api/chatbot/chat', {
+      const response = await fetch(`${API_URL}/chatbot/chat`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

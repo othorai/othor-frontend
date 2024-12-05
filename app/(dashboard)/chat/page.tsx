@@ -4,6 +4,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from "@/hooks/use-toast";
+import { API_URL } from '@/lib/config';
+
 
 // Components
 import { ChatHistory } from '@/components/chat/chat-history/chat-history';
@@ -52,7 +54,7 @@ export default function ChatPage() {
       const token = localStorage.getItem('authToken');
       if (!token) return;
 
-      const response = await fetch('/api/chatbot/chat/suggested_questions', {
+      const response = await fetch(`${API_URL}/chatbot/suggested_questions`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Accept': 'application/json',
@@ -74,7 +76,7 @@ export default function ChatPage() {
       const token = localStorage.getItem('authToken');
       if (!token) return;
 
-      const response = await fetch('/api/chatbot/chat/user-sessions', {
+      const response = await fetch(`${API_URL}/chatbot/user-sessions`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Accept': 'application/json',
@@ -109,9 +111,10 @@ export default function ChatPage() {
       setMessages(prev => [...prev, userMessage]);
       setInputText('');
 
-      const response = await fetch('/api/chatbot/chat', {
+      const response = await fetch(`${API_URL}/chatbot/chat`, {
         method: 'POST',
         headers: {
+          'Accept': 'application/json',
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
@@ -165,7 +168,7 @@ const handleChatSelect = async (chatId: string) => {
     const token = localStorage.getItem('authToken');
     if (!token) return;
 
-    const response = await fetch(`/api/chatbot/chat/session/${chatId}`, {
+    const response = await fetch(`${API_URL}/chatbot/session-chats/${sessionId}`, {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Accept': 'application/json',
@@ -243,7 +246,7 @@ const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const token = localStorage.getItem('authToken');
     if (!token) throw new Error('No auth token available');
 
-    const response = await fetch('/api/chatbot/upload', {
+    const response = await fetch(`${API_URL}/chatbot/upload-document?session_id=${sessionId || 'null'}`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,

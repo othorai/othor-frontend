@@ -1,3 +1,4 @@
+// new home.jsx//
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -6,6 +7,7 @@ import { NarrativeCard } from '@/components/narratives/card';
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { format } from 'date-fns';
+import { API_URL } from '@/lib/config';
 
 interface Article {
   id: string;
@@ -41,7 +43,9 @@ export default function HomePage() {
 
   const fetchNarratives = async () => {
     try {
+      const date = new Date()
       const token = localStorage.getItem('authToken');
+      const formattedDate = format(date, 'yyyy-MM-dd');
       console.log('Token available:', !!token);
 
       if (!token) {
@@ -50,12 +54,12 @@ export default function HomePage() {
         return;
       }
 
-      const response = await fetch('/api/narrative/feed', {
+      const response = await fetch(`${API_URL}/narrative/feed?date=${formattedDate}`, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Accept': 'application/json',
-        },
+          'Authorization': `Bearer ${token}`
+        }
       });
 
       console.log('Response status:', response.status);
@@ -63,7 +67,7 @@ export default function HomePage() {
       if (response.status === 401) {
         console.log('Token invalid or expired');
         localStorage.removeItem('authToken');
-        router.push('/login');
+        router.push('authorization/login');
         return;
       }
 
@@ -109,7 +113,7 @@ export default function HomePage() {
         return;
       }
 
-      const response = await fetch(`/api/narrative/${liked ? 'like' : 'unlike'}/${articleId}`, {
+      const response = await fetch(`${API_URL}/authorization/${liked ? 'like' : 'unlike'}/${articleId}`, {
         method: liked ? 'POST' : 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,

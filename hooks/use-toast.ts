@@ -1,7 +1,6 @@
-// hooks/use-toast.ts
-import * as React from "react"
-import { toast } from "@/components/ui/toast"
+'use client';
 
+import * as React from "react"
 import type {
   ToastActionElement,
   ToastProps,
@@ -73,7 +72,7 @@ const addToRemoveQueue = (toastId: string) => {
   toastTimeouts.set(toastId, timeout)
 }
 
-export const reducer = (state: State, action: Action): State => {
+function reducer(state: State, action: Action): State {
   switch (action.type) {
     case "ADD_TOAST":
       return {
@@ -92,8 +91,6 @@ export const reducer = (state: State, action: Action): State => {
     case "DISMISS_TOAST": {
       const { toastId } = action
 
-      // ! Side effects ! - This could be extracted into a dismissToast() action,
-      // but I'll keep it here for simplicity
       if (toastId) {
         addToRemoveQueue(toastId)
       } else {

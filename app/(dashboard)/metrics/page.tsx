@@ -8,6 +8,8 @@ import { Star } from 'lucide-react';
 import MetricCard from '@/components/metrics/MetricCard';
 import type { MetricData } from '@/components/metrics/MetricCard';
 import { ChevronLeft } from 'lucide-react'; // Add this import
+import { API_URL } from '@/lib/config';
+
 
 const currentScopeOptions = [
   { label: 'This Week', value: 'this_week' },
@@ -100,7 +102,7 @@ function MetricsPage() {
       }
 
       // Changed endpoint to match the API structure
-      const response = await fetch('/api/metrics/cards/metric_forecast/available', {
+      const response = await fetch(`${API_URL}/metrics/available_forecast_metrics`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -145,8 +147,8 @@ function MetricsPage() {
 
       // Updated endpoint path to match API structure
       const endpoint = isForecast && forecastableMetrics.includes(selectedMetric?.toLowerCase() ?? '') 
-      ? '/api/metrics/cards/metric_forecast'
-      : '/api/metrics/cards';
+      ? `${API_URL}/metrics/metric_forecast`
+      : `${API_URL}/metrics/metric_cards`;
 
     console.log('Fetching from endpoint:', endpoint); // Debug log
 
@@ -176,7 +178,7 @@ function MetricsPage() {
       toast({
         title: "Warning",
         description: "No metrics data available",
-        variant: "warning",
+        variant: "default",
       });
     }
   } catch (error) {
