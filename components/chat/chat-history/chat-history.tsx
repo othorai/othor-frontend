@@ -61,7 +61,7 @@ export function ChatHistory({
   };
 
   return (
-    <div className="w-64 border-r bg-white  flex-col h-full">
+    <div className="w-64 border-r bg-white flex flex-col h-full overflow-hidden">
       {/* New Chat Button */}
       <div className="flex-shrink-0 p-4 border-b">
         <Button 
@@ -80,7 +80,7 @@ export function ChatHistory({
       </div>
 
       {/* Chat List */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto min-h-0"> 
         {isLoading ? (
           <div className="p-4 space-y-3">
             {[...Array(5)].map((_, i) => (
