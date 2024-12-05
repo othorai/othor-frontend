@@ -310,42 +310,43 @@ const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
   };
 
   return (
-    <div className="flex h-[calc(100vh-5rem)]">
-      <ChatHistory
-  isLoading={isLoadingHistory}
-  chatHistory={chatHistory}
-  selectedChatId={selectedChatId}
-  onNewChat={handleNewChat}
-  onChatSelect={handleChatSelect}  // Use the new handler here
-/>
+    // Update the main container height class
+<div className="flex h-[calc(100vh-3rem)] md:h-[calc(100vh-5rem)]">
+  <ChatHistory
+    isLoading={isLoadingHistory}
+    chatHistory={chatHistory}
+    selectedChatId={selectedChatId}
+    onNewChat={handleNewChat}
+    onChatSelect={handleChatSelect}
+  />
 
-      
+  <div className="flex-1 flex flex-col min-h-0 relative">
+    <MessageList
+      messages={messages}
+      showLogo={showLogo}
+    />
 
-      <div className="flex-1 flex flex-col min-h-0">
-        <MessageList
-          messages={messages}
-          showLogo={showLogo}
-        />
-
-        <ChatInputContainer
-          inputText={inputText}
-          setInputText={setInputText}
-          onSend={handleSendMessage}
-          onFileUpload={handleFileUpload}
-          isLoading={isLoading}
-          isUploading={uploadingFile}
-          suggestions={suggestions}
-          showSuggestions={showSuggestions}
-          documents={documents}
-          maxFileSize={MAX_FILE_SIZE}
-        />
-      </div>
-
-      <DocumentContainer
+    <div className="absolute bottom-0 left-0 right-0 mb-20 md:mb-0">
+      <ChatInputContainer
+        inputText={inputText}
+        setInputText={setInputText}
+        onSend={handleSendMessage}
+        onFileUpload={handleFileUpload}
+        isLoading={isLoading}
+        isUploading={uploadingFile}
+        suggestions={suggestions}
+        showSuggestions={showSuggestions}
         documents={documents}
-        showSidebar={showDocumentSidebar}
-        onCloseSidebar={() => setShowDocumentSidebar(false)}
+        maxFileSize={MAX_FILE_SIZE}
       />
     </div>
+  </div>
+
+  <DocumentContainer
+    documents={documents}
+    showSidebar={showDocumentSidebar}
+    onCloseSidebar={() => setShowDocumentSidebar(false)}
+  />
+</div>
   );
 }
