@@ -1,6 +1,6 @@
 // components/settings/sidebar.tsx
 import { FC } from 'react';
-import { LogOut, Database, Building2, Users, LucideIcon } from 'lucide-react';
+import { LogOut, Database, Building2, Users, LucideIcon, Heart, CircleHelp } from 'lucide-react';
 
 interface SidebarItem {
   name: string;
@@ -17,7 +17,9 @@ interface SidebarProps {
 const SIDEBAR_ITEMS: SidebarItem[] = [
   { name: 'Workspaces', icon: Building2 },
   { name: 'Data sources', icon: Database },
-  { name: 'Team', icon: Users },
+  { name: 'Team Members', icon: Users },
+  { name: 'Liked Narratives', icon: Heart },
+  { name: 'Help & Support', icon: CircleHelp},
   { name: 'Logout', icon: LogOut, className: 'text-red-600 hover:text-red-700' }
 ];
 
