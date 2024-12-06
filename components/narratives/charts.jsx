@@ -124,10 +124,10 @@ export function NarrativeChart({ data, title, timePeriod }) {
 
   // Memoize colors and styles
   const colors = useMemo(() => ({
-    positive: '#4CAF50',
-    negative: '#FF5252',
-    previous: '#FF9EB1',
-    current: '#86B6F6'
+    positive: '#4CAF50',  // Keep your green
+    negative: '#FF5252',  // Keep your red
+    previous: '#9CA3AF',  // Light gray
+    current: '#0EA5E9'   // Sky blue
   }), []);
 
   const chartProps = useMemo(() => ({
