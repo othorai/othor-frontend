@@ -124,10 +124,10 @@ export function NarrativeChart({ data, title, timePeriod }) {
 
   // Memoize colors and styles
   const colors = useMemo(() => ({
-    positive: '#4CAF50',  // Keep your green
-    negative: '#FF5252',  // Keep your red
-    previous: '#9CA3AF',  // Light gray
-    current: '#0EA5E9'   // Sky blue
+    positive: '#4CAF50',  // Lighter variant of your primary purple
+    negative: '#FF4D8C',  // Pink-red that complements purple
+    previous: '#6B7280',  // Neutral gray
+    current: '#C000FA'   // Your primary brand color
   }), []);
 
   const chartProps = useMemo(() => ({
