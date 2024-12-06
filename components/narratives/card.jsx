@@ -80,7 +80,7 @@ export function NarrativeCard({
       pdf.text(title, 20, yOffset);
       yOffset += 15;
   
-      // Add date
+      // Add time period
       pdf.setFontSize(12);
       pdf.setTextColor(100);
       pdf.text(formatTimePeriod(timePeriod), 20, yOffset);
@@ -103,9 +103,39 @@ export function NarrativeCard({
         pdf.text(formatMetricName(currentMetric), 20, yOffset);
         yOffset += 10;
   
-        // Add metric values in a table
+        // Format dates for table headers
+        const formatDate = (date) => {
+          return date.toLocaleDateString('en-GB', {
+            day: '2-digit',
+            month: 'short',
+            year: '2-digit'
+          }).replace(/ /g, ' ');
+        };
+  
+        // Get current and previous dates
+        let currentDate, previousDate;
+        if (timePeriod?.toLowerCase().includes('daily')) {
+          const match = timePeriod.match(/(\d{1,2}-\d{1,2}-\d{4})/);
+          if (match) {
+            const [day, month, year] = match[1].split('-');
+            currentDate = new Date(year, month - 1, day);
+            previousDate = new Date(currentDate);
+            previousDate.setDate(previousDate.getDate() - 1);
+          }
+        } else if (timePeriod?.toLowerCase().includes('weekly')) {
+          currentDate = new Date();
+          previousDate = new Date(currentDate);
+          previousDate.setDate(previousDate.getDate() - 7);
+        }
+  
+        // Add metric values in a table with dates in header
         const tableData = [
-          ['', 'Previous', 'Current', 'Change'],
+          [
+            '',
+            'Previous\n' + (previousDate ? formatDate(previousDate) : ''),
+            'Current\n' + (currentDate ? formatDate(currentDate) : ''),
+            'Change'
+          ],
           [
             formatMetricName(currentMetric),
             metricData.previous.toFixed(2),
@@ -124,8 +154,23 @@ export function NarrativeCard({
             cellPadding: 5
           },
           headStyles: {
-            fillColor: [145, 0, 189], // Your primary color
-            textColor: 255
+            fillColor: [192, 0, 250],
+            textColor: 255,
+            cellPadding: { top: 5, bottom: 5 },
+            minCellHeight: 20,
+            valign: 'middle',
+            halign: 'center'
+          },
+          columnStyles: {
+            0: { halign: 'left' },
+            1: { halign: 'center' },
+            2: { halign: 'center' },
+            3: { halign: 'center' }
+          },
+          didParseCell: function(data) {
+            if (data.section === 'head') {
+              data.cell.styles.whiteSpace = 'pre-wrap';
+            }
           }
         });
         yOffset = pdf.lastAutoTable.finalY + 15;

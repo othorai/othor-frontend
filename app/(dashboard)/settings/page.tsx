@@ -16,6 +16,7 @@ import { useOrganization } from '@/components/settings/hooks/use-organization';
 import { useDataSource } from '@/components/settings/hooks/use-data-source';
 import { useTeam } from '@/components/settings/hooks/use-team';
 
+
 // Components
 import { Sidebar } from '@/components/settings/sidebar';
 import { WorkspacesList } from '@/components/settings/workspaces/workspaces-list';
@@ -31,6 +32,8 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+
+import HelpAndSupport from '@/components/settings/help-support/help-support-list';
 
 export default function SettingsPage() {
   // State
@@ -220,6 +223,10 @@ export default function SettingsPage() {
         
                 />
               )}
+
+{activeSidebarItem === 'Help & Support' && (
+  <HelpAndSupport />
+)}
             </>
           )}
         </div>

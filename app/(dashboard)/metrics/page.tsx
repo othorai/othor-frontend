@@ -247,7 +247,7 @@ function MetricsPage() {
           
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-              <Star className="h-4 w-4" />
+              <Star className="h-4 w-4 text-primary" />
               <span>Forecast available</span>
             </div>
             {selectedMetric && forecastableMetrics.includes(selectedMetric.toLowerCase()) && (
