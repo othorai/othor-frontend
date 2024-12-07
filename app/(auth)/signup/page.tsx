@@ -10,6 +10,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, AlertCircle, Check, X } from 'lucide-react';
 import { API_URL } from '@/lib/config';
+import { useAuth } from '@/context/auth-context';
 
 type ErrorState = {
   title: string;
@@ -63,11 +64,12 @@ export default function SignupPage() {
   
   const router = useRouter();
   const { toast } = useToast();
+  const { login } = useAuth();
 
   useEffect(() => {
     const token = localStorage.getItem('authToken');
     if (token) {
-      router.push('/dashboard');
+      router.push('/home');
     }
   }, [router]);
 
@@ -210,6 +212,7 @@ export default function SignupPage() {
     setIsLoading(true);
    
     try {
+      // 1. Register the user
       const response = await fetch(`${API_URL}/authorization/signup`, {
         method: 'POST',
         headers: {
@@ -233,9 +236,18 @@ export default function SignupPage() {
         }
         throw new Error(data.detail || 'Signup failed');
       }
-   
-      // Redirect to login with success message
-      router.push('/login?signup=success');
+
+      // 2. Automatically log in the user
+      await login(formData.email, formData.password);
+      
+      // 3. Show success message
+      toast({
+        title: "Account created successfully",
+        description: "Welcome to Othor AI!",
+      });
+      
+      // 4. Redirect to home page
+      router.push('/home');
       
     } catch (error) {
       console.error('Signup error:', error);
@@ -246,9 +258,9 @@ export default function SignupPage() {
     } finally {
       setIsLoading(false);
     }
-   };
+  };
    
-   return (
+  return (
     <div className="min-h-screen flex items-center justify-center">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
@@ -418,5 +430,5 @@ export default function SignupPage() {
         </CardContent>
       </Card>
     </div>
-   );
-   }
+  );
+}
