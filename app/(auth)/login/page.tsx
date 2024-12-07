@@ -1,36 +1,105 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from 'lucide-react';
+import { Loader2, AlertCircle } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(false);
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+    rememberMe: false
+  });
+  const [errors, setErrors] = useState({
+    email: '',
+    password: '',
+    general: ''
+  });
   const [isLoading, setIsLoading] = useState(false);
+  const [attemptCount, setAttemptCount] = useState(0);
   const router = useRouter();
   const { toast } = useToast();
   const { login } = useAuth();
+
+  useEffect(() => {
+    // Load saved email if remember me was checked
+    const savedEmail = localStorage.getItem('savedEmail');
+    const rememberMe = localStorage.getItem('rememberMe') === 'true';
+    if (savedEmail && rememberMe) {
+      setFormData(prev => ({ ...prev, email: savedEmail, rememberMe }));
+    }
+
+    // Check for signup success
+    if (window.location.search.includes('signup=success')) {
+      toast({
+        title: "Account created successfully",
+        description: "You can now login with your email and password",
+      });
+      // Clean up URL
+      window.history.replaceState({}, '', '/login');
+    }
+  }, [toast]);
+
+  const validateForm = () => {
+    const newErrors = {
+      email: '',
+      password: '',
+      general: ''
+    };
+
+    // Email validation
+    if (!formData.email) {
+      newErrors.email = 'Email is required';
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      newErrors.email = 'Please enter a valid email address';
+    }
+
+    // Password validation
+    if (!formData.password) {
+      newErrors.password = 'Password is required';
+    } else if (formData.password.length < 4) {
+      newErrors.password = 'Password must be at least 6 characters';
+    }
+
+    setErrors(newErrors);
+    return Object.values(newErrors).every(error => !error);
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value, type, checked } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
+    // Clear error when user starts typing
+    if (errors[name as keyof typeof errors]) {
+      setErrors(prev => ({ ...prev, [name]: '' }));
+    }
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isLoading) return;
 
+    if (!validateForm()) {
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      await login(email, password);
+      await login(formData.email, formData.password);
       
       // Handle remember me preferences
-      if (rememberMe) {
-        localStorage.setItem('savedEmail', email);
+      if (formData.rememberMe) {
+        localStorage.setItem('savedEmail', formData.email);
         localStorage.setItem('rememberMe', 'true');
       } else {
         localStorage.removeItem('savedEmail');
@@ -42,13 +111,34 @@ export default function LoginPage() {
         description: "Redirecting to dashboard...",
       });
       
+      router.push('/home');
     } catch (error) {
       console.error('Login error:', error);
-      toast({
-        variant: "destructive",
-        title: "Login failed",
-        description: error instanceof Error ? error.message : "An error occurred during login",
-      });
+      setAttemptCount(prev => prev + 1);
+      
+      // Handle specific error cases
+      if (error instanceof Error) {
+        if (error.message.includes('credentials')) {
+          setErrors(prev => ({
+            ...prev,
+            general: 'Incorrect email or password'
+          }));
+        } else {
+          setErrors(prev => ({
+            ...prev,
+            general: error.message
+          }));
+        }
+      }
+
+      // Show lockout warning after multiple failed attempts
+      if (attemptCount >= 2) {
+        toast({
+          variant: "destructive",
+          title: "Multiple failed attempts",
+          description: "Please verify your credentials or reset your password",
+        });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -72,42 +162,60 @@ export default function LoginPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">
+            {errors.general && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{errors.general}</AlertDescription>
+              </Alert>
+            )}
+            
             <div className="space-y-2">
               <Input
                 type="email"
+                name="email"
                 placeholder="Work Email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                value={formData.email}
+                onChange={handleInputChange}
                 disabled={isLoading}
                 required
-                className="h-12"
+                className={`h-12 ${errors.email ? 'border-red-500' : ''}`}
+                aria-invalid={!!errors.email}
               />
+              {errors.email && (
+                <p className="text-sm text-red-500">{errors.email}</p>
+              )}
             </div>
+
             <div className="space-y-2">
               <Input
                 type="password"
+                name="password"
                 placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                value={formData.password}
+                onChange={handleInputChange}
                 disabled={isLoading}
                 required
-                className="h-12"
+                className={`h-12 ${errors.password ? 'border-red-500' : ''}`}
+                aria-invalid={!!errors.password}
               />
+              {errors.password && (
+                <p className="text-sm text-red-500">{errors.password}</p>
+              )}
             </div>
 
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 <div 
-                  onClick={() => setRememberMe(!rememberMe)}
+                  onClick={() => setFormData(prev => ({ ...prev, rememberMe: !prev.rememberMe }))}
                   className={`w-4 h-4 rounded border cursor-pointer flex items-center justify-center
-                    ${rememberMe ? 'bg-primary border-primary' : 'border-gray-300'}`}
+                    ${formData.rememberMe ? 'bg-primary border-primary' : 'border-gray-300'}`}
                 >
-                  {rememberMe && (
+                  {formData.rememberMe && (
                     <span className="text-white text-xs">✓</span>
                   )}
                 </div>
                 <label
-                  onClick={() => setRememberMe(!rememberMe)}
+                  onClick={() => setFormData(prev => ({ ...prev, rememberMe: !prev.rememberMe }))}
                   className="text-sm text-gray-600 cursor-pointer"
                 >
                   Remember me
