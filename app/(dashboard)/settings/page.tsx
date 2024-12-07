@@ -1,13 +1,14 @@
-// app/(dashboard)/settings/page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from '@/context/auth-context';
 import { 
   Sheet,
   SheetContent,
-  SheetTrigger, SheetTitle
+  SheetTrigger, 
+  SheetTitle
 } from "@/components/ui/sheet";
 import { Menu } from "lucide-react";
 
@@ -15,7 +16,6 @@ import { Menu } from "lucide-react";
 import { useOrganization } from '@/components/settings/hooks/use-organization';
 import { useDataSource } from '@/components/settings/hooks/use-data-source';
 import { useTeam } from '@/components/settings/hooks/use-team';
-
 
 // Components
 import { Sidebar } from '@/components/settings/sidebar';
@@ -32,7 +32,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-
 import HelpAndSupport from '@/components/settings/help-support/help-support-list';
 
 export default function SettingsPage() {
@@ -41,28 +40,10 @@ export default function SettingsPage() {
   const [isCreateOrgModalOpen, setIsCreateOrgModalOpen] = useState(false);
   const [newOrgName, setNewOrgName] = useState('');
 
-  const wrappedHandleEditOrganization = async (orgId: string, name: string) => {
-    await handleEditOrganization(orgId, name);
-  };
-
-  const wrappedHandleRemoveMember = async (userId: string) => {
-    if (!activeOrganization) return;
-    await handleRemoveMember(activeOrganization.id, userId);
-  };
-
-  const wrappedHandleUpdateMemberRole = async (userId: string, isAdmin: boolean) => {
-    if (!activeOrganization) return;
-    await handleUpdateMemberRole(activeOrganization.id, userId, isAdmin);
-  };
-
-  const handleEditWorkspaceWrapper = async (orgId: string, name: string) => {
-    await handleEditOrganization(orgId, name);
-    // Void the boolean return value
-  };
-  
   // Hooks
   const router = useRouter();
   const { toast } = useToast();
+  const { logout } = useAuth();
   
   // Custom hooks
   const {
@@ -95,11 +76,29 @@ export default function SettingsPage() {
     handleUpdateMemberRole,
   } = useTeam();
 
+  // Wrapper functions
+  const wrappedHandleEditOrganization = async (orgId: string, name: string) => {
+    await handleEditOrganization(orgId, name);
+  };
+
+  const wrappedHandleRemoveMember = async (userId: string) => {
+    if (!activeOrganization) return;
+    await handleRemoveMember(activeOrganization.id, userId);
+  };
+
+  const wrappedHandleUpdateMemberRole = async (userId: string, isAdmin: boolean) => {
+    if (!activeOrganization) return;
+    await handleUpdateMemberRole(activeOrganization.id, userId, isAdmin);
+  };
+
+  const handleEditWorkspaceWrapper = async (orgId: string, name: string) => {
+    await handleEditOrganization(orgId, name);
+  };
+
   // Handlers
   const handleLogout = async () => {
     try {
-      localStorage.removeItem('authToken');
-      router.push('/login');
+      await logout();
     } catch (error) {
       console.error('Error logging out:', error);
       toast({
@@ -173,6 +172,7 @@ export default function SettingsPage() {
           handleLogout={handleLogout}
         />
       </div>
+
       <main className="flex-1 overflow-y-auto p-8">
         <div className="max-w-5xl mx-auto space-y-6">
           {isLoading ? (
@@ -220,13 +220,11 @@ export default function SettingsPage() {
                   }}
                   onRemoveMember={wrappedHandleRemoveMember}
                   onUpdateMemberRole={wrappedHandleUpdateMemberRole}
-        
                 />
               )}
-
-{activeSidebarItem === 'Help & Support' && (
-  <HelpAndSupport />
-)}
+              {activeSidebarItem === 'Help & Support' && (
+                <HelpAndSupport />
+              )}
             </>
           )}
         </div>
