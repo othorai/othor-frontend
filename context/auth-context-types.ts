@@ -14,7 +14,7 @@ export interface Organization {
   
   export interface AuthContextType {
     user: User | null;
-    login: (email: string, password: string) => Promise<void>;
+    login: (email: string, password: string, rememberMe?: boolean) => Promise<void>;
     logout: () => Promise<void>;
     loading: boolean;
   }

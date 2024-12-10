@@ -2,15 +2,24 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
+  const { pathname, searchParams } = request.nextUrl;
   
   // Allow public paths
   const PUBLIC_PATHS = ['/login', '/signup', '/forgot-password', '/reset-password'];
   const isPublicPath = PUBLIC_PATHS.includes(pathname);
 
+  // Special check for verification with token
+  const isVerificationPath = pathname === '/verification';
+  const hasVerificationToken = searchParams.has('token');
+
   // Get token from cookies or authorization header
   const token = request.cookies.get('authToken')?.value || 
                 request.headers.get('authorization')?.split(' ')[1];
+
+  // Allow verification page with token
+  if (isVerificationPath && hasVerificationToken) {
+    return NextResponse.next();
+  }
 
   // If on a public path and have token, redirect to home
   if (isPublicPath && token) {
@@ -18,7 +27,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // If on a private path and no token, redirect to login
-  if (!isPublicPath && !token) {
+  if (!isPublicPath && !token && !isVerificationPath) {
     const loginUrl = new URL('/login', request.url);
     if (pathname !== '/') {
       loginUrl.searchParams.set('from', pathname);

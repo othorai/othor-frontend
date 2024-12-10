@@ -1,8 +1,11 @@
+// context/auth-context-types.tsx
+
 'use client';
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { API_URL } from '@/lib/config';
+import { saveAuthState, clearAuthState } from '@/lib/auth';
 import type { User, AuthContextType } from './auth-context-types';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -22,23 +25,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const token = localStorage.getItem('authToken');
       if (!token) {
         setLoading(false);
+        setUser(null);
         return;
       }
-
+  
       const response = await fetch(`${API_URL}/authorization/me`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
       });
-
+  
       if (response.ok) {
         const userData: User = await response.json();
         setUser(userData);
-        
-        // If we're on a login page and authenticated, redirect to home
-        if (pathname?.includes('/login')) {
-          router.push('/home');
-        }
       } else {
         handleLogout();
       }
@@ -55,59 +54,66 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, [pathname]);
 
   const handleLogout = () => {
-    localStorage.removeItem('authToken');
-    document.cookie = 'authToken=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
+    clearAuthState();
     setUser(null);
+    setLoading(false);
   };
 
-  const login = async (email: string, password: string): Promise<void> => {
-    try {
-      const response = await fetch(`${API_URL}/authorization/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: `username=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`,
-      });
-  
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Login failed');
+  const login = async (email: string, password: string, rememberMe: boolean = false): Promise<void> => {
+      try {
+        setLoading(true);
+        
+        const response = await fetch(`${API_URL}/authorization/login`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: `username=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`,
+        });
+    
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.detail || 'Login failed');
+        }
+    
+        const data = await response.json();
+        
+        if (!data.access_token) {
+          throw new Error('No access token received');
+        }
+
+        // Use the auth utility to save state
+        saveAuthState(data.access_token, email, rememberMe);
+    
+        // Fetch user data after successful login
+        const userResponse = await fetch(`${API_URL}/authorization/me`, {
+          headers: {
+            'Authorization': `Bearer ${data.access_token}`,
+          },
+        });
+    
+        if (!userResponse.ok) {
+          throw new Error('Failed to fetch user data');
+        }
+    
+        const userData = await userResponse.json();
+        setUser(userData);
+
+        // Only redirect if we have user data
+        if (userData) {
+          router.push('/home');
+        } else {
+          throw new Error('No user data received');
+        }
+    
+      } catch (error) {
+        handleLogout();
+        throw error;
+      } finally {
+        setLoading(false);
       }
-  
-      const data = await response.json();
-      
-      if (!data.access_token) {
-        throw new Error('No access token received');
-      }
-  
-      // Set token in both localStorage and cookie
-      localStorage.setItem('authToken', data.access_token);
-      document.cookie = `authToken=${data.access_token}; path=/; max-age=${60 * 60 * 24 * 7}`;
-  
-      // Fetch user data after successful login
-      const userResponse = await fetch(`${API_URL}/authorization/me`, {
-        headers: {
-          'Authorization': `Bearer ${data.access_token}`,
-        },
-      });
-  
-      if (!userResponse.ok) {
-        throw new Error('Failed to fetch user data');
-      }
-  
-      const userData = await userResponse.json();
-      setUser(userData);
-      
-      // Use router for navigation
-      router.push('/home');
-      router.refresh();
-  
-    } catch (error) {
-      handleLogout();
-      throw error;
-    }
   };
+
   
   const logout = async (): Promise<void> => {
     try {

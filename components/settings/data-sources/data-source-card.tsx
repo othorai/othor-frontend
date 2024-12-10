@@ -4,19 +4,7 @@ import { Edit, Trash2 } from 'lucide-react';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-
-interface ConnectionDetails {
-  database: string;
-  host: string;
-}
-
-interface DataSource {
-  id: string;
-  source_type: string;
-  connected: boolean;
-  connection_details: ConnectionDetails;
-  table_name: string;
-}
+import { DataSource } from '@/types/data-sources';
 
 interface DataSourceCardProps {
   dataSource: DataSource;
@@ -29,34 +17,39 @@ export const DataSourceCard: FC<DataSourceCardProps> = ({
   onEdit,
   onDelete,
 }) => {
-  const {
-    id,
-    source_type,
-    connected,
-    connection_details,
-    table_name
-  } = dataSource;
+  // Early return with loading state if data isn't ready
+  if (!dataSource?.source_type) {
+    return (
+      <Card className="p-4">
+        <div className="flex justify-between items-center">
+          <div>
+            <h4 className="font-medium">Loading...</h4>
+          </div>
+        </div>
+      </Card>
+    );
+  }
 
   return (
     <Card className="p-4">
       <div className="flex justify-between items-center">
         <div>
-          <h4 className="font-medium">{source_type.toUpperCase()}</h4>
+          <h4 className="font-medium">{(dataSource.source_type || '').toUpperCase()}</h4>
           <p className="text-sm text-muted-foreground">
-            {connection_details.database} • {connection_details.host}
+            {dataSource.connection_details?.database || 'N/A'} • {dataSource.connection_details?.host || 'N/A'}
           </p>
           <p className="text-sm text-muted-foreground">
-            Table: {table_name}
+            Table: {dataSource.table_name || 'N/A'}
           </p>
         </div>
         <div className="flex items-center space-x-2">
-          <Badge variant={connected ? "success" : "destructive"}>
-            {connected ? 'Connected' : 'Disconnected'}
+          <Badge variant={dataSource.connected ? "success" : "destructive"}>
+            {dataSource.connected ? 'Connected' : 'Disconnected'}
           </Badge>
           <Button 
             variant="ghost" 
             size="sm"
-            onClick={() => onEdit(id)}
+            onClick={() => onEdit(dataSource.id)}
           >
             <Edit className="w-4 h-4" />
           </Button>
@@ -64,7 +57,7 @@ export const DataSourceCard: FC<DataSourceCardProps> = ({
             variant="ghost" 
             size="sm" 
             className="text-red-600 hover:text-red-700"
-            onClick={() => onDelete(id)}
+            onClick={() => onDelete(dataSource.id)}
           >
             <Trash2 className="w-4 h-4" />
           </Button>

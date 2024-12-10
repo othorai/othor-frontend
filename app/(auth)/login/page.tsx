@@ -1,3 +1,4 @@
+// app/(auth)/login/page.tsx
 'use client';
 
 import { useState } from 'react';
@@ -19,6 +20,7 @@ export default function LoginPage() {
   const { toast } = useToast();
   const { login } = useAuth();
 
+  
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isLoading) return;
@@ -26,17 +28,8 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      await login(email, password);
+      await login(email, password, rememberMe); // Pass rememberMe state
       
-      // Handle remember me preferences
-      if (rememberMe) {
-        localStorage.setItem('savedEmail', email);
-        localStorage.setItem('rememberMe', 'true');
-      } else {
-        localStorage.removeItem('savedEmail');
-        localStorage.removeItem('rememberMe');
-      }
-
       toast({
         title: "Login successful",
         description: "Redirecting to dashboard...",
@@ -52,7 +45,7 @@ export default function LoginPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+};
 
   return (
     <div className="min-h-screen flex items-center justify-center">

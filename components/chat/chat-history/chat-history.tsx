@@ -1,6 +1,9 @@
+// components/chat/chat-history/chat-history.tsx
+
 import { MessageSquare } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { ChatGroup } from './chat-group';
+
 
 interface ChatSession {
   id: string;

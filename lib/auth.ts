@@ -1,3 +1,4 @@
+// lib/auth.ts
 import Cookies from 'js-cookie';
 
 interface AuthState {

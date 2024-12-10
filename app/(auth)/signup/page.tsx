@@ -1,3 +1,5 @@
+// app/(auth)/signup/page.tsx
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -25,7 +27,6 @@ export default function SignupPage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Check if already logged in
     const token = localStorage.getItem('authToken');
     if (token) {
       router.push('/home');
@@ -80,7 +81,6 @@ export default function SignupPage() {
     e.preventDefault();
     if (isLoading) return;
 
-    // Validate all fields
     if (!email || !username || !password || !confirmPassword) {
       toast({
         variant: "destructive",
@@ -131,8 +131,9 @@ export default function SignupPage() {
           username,
           email,
           password,
-          role: 'tester',
-          data_access: 'admin'
+          role: 'admin',
+          data_access: 'admin',
+          organization_name: 'Wayne Enterprises'
         }),
       });
 
@@ -144,10 +145,10 @@ export default function SignupPage() {
 
       toast({
         title: "Account created successfully",
-        description: "Please check your email for verification.",
+        description: "Please log in with your credentials.",
       });
 
-      router.push('/verification');
+      router.push('/login');
       
     } catch (error) {
       console.error('Signup error:', error);

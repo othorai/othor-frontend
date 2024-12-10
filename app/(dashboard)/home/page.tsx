@@ -1,4 +1,4 @@
-// new home.jsx//
+// app/(dashboard)/home/pages.jsx//
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -6,10 +6,11 @@ import { useRouter } from 'next/navigation';
 import { NarrativeCard } from '@/components/narratives/card';
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
+import { useStore } from '@/app/(dashboard)/store/store';
 import { format } from 'date-fns';
 import { API_URL } from '@/lib/config';
 
-interface Article {
+export interface Article {
   id: string;
   title: string;
   content: string;
@@ -23,17 +24,15 @@ interface Article {
 export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [feedData, setFeedData] = useState<Article[]>([]);
   const [username, setUsername] = useState('');
   const router = useRouter();
   const { toast } = useToast();
+  const { narratives, setNarratives } = useStore();
 
-  // Format today's date
   const today = new Date();
   const formattedDate = format(today, "dd MMM yyyy EEEE");
 
   useEffect(() => {
-    // Get username from localStorage
     const email = localStorage.getItem('savedEmail');
     if (email) {
       const name = email.split('@')[0];
@@ -43,13 +42,16 @@ export default function HomePage() {
 
   const fetchNarratives = async () => {
     try {
+      if (narratives.length > 1) {
+        setLoading(false);
+        return;
+      }
+      
       const date = new Date()
       const token = localStorage.getItem('authToken');
       const formattedDate = format(date, 'yyyy-MM-dd');
-      console.log('Token available:', !!token);
 
       if (!token) {
-        console.log('No token found, redirecting to login');
         router.push('/login');
         return;
       }
@@ -62,24 +64,20 @@ export default function HomePage() {
         }
       });
 
-      console.log('Response status:', response.status);
-
       if (response.status === 401) {
-        console.log('Token invalid or expired');
         localStorage.removeItem('authToken');
         router.push('authorization/login');
         return;
       }
 
       const data = await response.json();
-      console.log('Response data:', data);
 
       if (!response.ok) {
         throw new Error(data.error || 'Failed to fetch narratives');
       }
 
       if (data.articles && Array.isArray(data.articles)) {
-        setFeedData(data.articles);
+        setNarratives(data.articles as Article[]);
       } else {
         throw new Error('Invalid response format');
       }
@@ -131,11 +129,11 @@ export default function HomePage() {
         throw new Error('Failed to update like status');
       }
 
-      setFeedData(prevData =>
-        prevData.map(article =>
-          article.id === articleId ? { ...article, isLiked: liked } : article
-        )
+      const updatedNarratives = narratives.map((article: Article) =>
+        article.id === articleId ? { ...article, isLiked: liked } : article
       );
+      
+      setNarratives(updatedNarratives);
 
       toast({
         title: liked ? "Narrative liked" : "Narrative unliked",
@@ -181,12 +179,9 @@ export default function HomePage() {
 
   return (
     <div className="container mx-auto px-2 py-8 max-w-4xl">
-      
-
-      {/* Narratives */}
       <div className="space-y-6">
-        {feedData.length > 0 ? (
-          feedData.map((article) => (
+        {narratives.length > 0 ? (
+          narratives.map((article: Article) => (
             <NarrativeCard
               key={article.id}
               title={article.title}

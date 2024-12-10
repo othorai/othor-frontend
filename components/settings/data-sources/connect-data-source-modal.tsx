@@ -1,3 +1,4 @@
+// components/settings/data-sources/connect-data-source-modal.tsx
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -19,42 +20,93 @@ export function ConnectDataSourceModal({
   onSubmit,
   isLoading = false
 }: ConnectDataSourceModalProps) {
+  
   const [step, setStep] = useState(1);
   const [sourceType, setSourceType] = useState('snowflake');
   const [formData, setFormData] = useState({
     name: '',
+    account: '',
+    warehouse: '',
+    host: '',
+    port: '',
     username: '',
     password: '',
     database: '',
     schema: '',
-    table_name: '',
-    host: '',
-    port: '',
-    account: '',
-    warehouse: '',
+    table_name: ''
   });
+
+  const sanitizeHost = (host: string) => {
+    return host
+      .replace(/^https?:\/\//, '')  // Remove http:// or https://
+      .replace(/\/$/, '')           // Remove trailing slash
+      .trim();                      // Remove whitespace
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit({
+    const payload = {
       source_type: sourceType,
-      ...formData
-    });
+      name: formData.name,
+      ...getSourceSpecificFields()
+    };
+    
+    // Sanitize host if present
+    if (payload.host) {
+      payload.host = sanitizeHost(payload.host);
+    }
+    
+    onSubmit(payload);
+  };
+
+  const getSourceSpecificFields = () => {
+    switch (sourceType) {
+      case 'snowflake':
+        return {
+          account: formData.account,
+          warehouse: formData.warehouse,
+          username: formData.username,
+          password: formData.password,
+          database: formData.database,
+          schema: formData.schema,
+          table_name: formData.table_name
+        };
+      case 'mysql':
+        return {
+          host: formData.host,
+          port: formData.port,
+          username: formData.username,
+          password: formData.password,
+          database: formData.database,
+          schema: formData.database,
+          table_name: formData.table_name
+        };
+      case 'postgresql':
+        return {
+          host: formData.host,
+          username: formData.username,
+          password: formData.password,
+          database: formData.database,
+          table_name: formData.table_name
+        };
+      default:
+        return {};
+    }
   };
 
   const handleClose = () => {
     setStep(1);
     setFormData({
       name: '',
+      account: '',
+      warehouse: '',
+      host: '',
+      port: '',
       username: '',
       password: '',
       database: '',
       schema: '',
-      table_name: '',
-      host: '',
-      port: '',
-      account: '',
-      warehouse: '',
+      table_name: ''
     });
     onClose();
   };
@@ -67,10 +119,13 @@ export function ConnectDataSourceModal({
         if (sourceType === 'snowflake') {
           return formData.account && formData.warehouse;
         }
-        return formData.host && formData.port;
+        return formData.host && (sourceType === 'mysql' ? formData.port : true);
       case 3:
         return formData.username && formData.password;
       case 4:
+        if (sourceType === 'postgresql') {
+          return formData.database && formData.table_name;
+        }
         return formData.database && formData.schema && formData.table_name;
       default:
         return false;
@@ -136,15 +191,17 @@ export function ConnectDataSourceModal({
                 onChange={(e) => setFormData({ ...formData, host: e.target.value })}
               />
             </div>
-            <div className="space-y-2">
-              <Label>Port</Label>
-              <Input
-                type="number"
-                placeholder="Port number"
-                value={formData.port}
-                onChange={(e) => setFormData({ ...formData, port: e.target.value })}
-              />
-            </div>
+            {sourceType === 'mysql' && (
+              <div className="space-y-2">
+                <Label>Port</Label>
+                <Input
+                  type="number"
+                  placeholder="Port number (default: 3306)"
+                  value={formData.port}
+                  onChange={(e) => setFormData({ ...formData, port: e.target.value })}
+                />
+              </div>
+            )}
           </div>
         );
 
@@ -182,14 +239,16 @@ export function ConnectDataSourceModal({
                 onChange={(e) => setFormData({ ...formData, database: e.target.value })}
               />
             </div>
-            <div className="space-y-2">
-              <Label>Schema</Label>
-              <Input
-                placeholder="Schema name"
-                value={formData.schema}
-                onChange={(e) => setFormData({ ...formData, schema: e.target.value })}
-              />
-            </div>
+            {sourceType !== 'postgresql' && (
+              <div className="space-y-2">
+                <Label>Schema</Label>
+                <Input
+                  placeholder="Schema name"
+                  value={formData.schema}
+                  onChange={(e) => setFormData({ ...formData, schema: e.target.value })}
+                />
+              </div>
+            )}
             <div className="space-y-2">
               <Label>Table Name</Label>
               <Input
@@ -224,7 +283,6 @@ export function ConnectDataSourceModal({
           <DialogTitle>Connect Data Source</DialogTitle>
         </DialogHeader>
 
-        {/* Progress Indicator */}
         <div className="flex justify-between mb-6">
           {[1, 2, 3, 4].map((stepNumber) => (
             <div

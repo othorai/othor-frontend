@@ -4,7 +4,7 @@ const getApiUrl = () => {
     return process.env.API_URL;
   }
   
-  return 'http://backend-authorization-gatewa-alb-1180704430.eu-north-1.elb.amazonaws.com';
+  return 'http://localhost:8004';
 };
 
 export const API_URL = getApiUrl();

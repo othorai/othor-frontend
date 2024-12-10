@@ -98,8 +98,8 @@ export default function SettingsPage() {
   // Handlers
   const handleLogout = async () => {
     try {
-      localStorage.removeItem('authToken');
-      router.push('/login');
+      localStorage.clear();
+      window.location.href = '/login';
     } catch (error) {
       console.error('Error logging out:', error);
       toast({

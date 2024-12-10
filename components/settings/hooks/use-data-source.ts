@@ -80,7 +80,7 @@ export function useDataSource(): UseDataSourceReturn {
   ): Promise<boolean> => {
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch(`${API_URL}/data-source/organization/${organizationId}/data-sources`, {
+      const response = await fetch(`${API_URL}/data-source/connect`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
