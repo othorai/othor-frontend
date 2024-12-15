@@ -12,7 +12,7 @@ interface Organization {
 interface WorkspaceCardProps {
   organization: Organization;
   isActive: boolean;
-  onSwitch: (orgId: string) => void;
+  onSwitch: (orgId: string) => Promise<void>; 
   onEdit: (orgId: string, name: string) => Promise<void>;
   onDelete: (orgId: string) => void;
 }
@@ -24,6 +24,22 @@ export const WorkspaceCard: FC<WorkspaceCardProps> = ({
   onEdit,
   onDelete
 }) => {
+  const handleSwitch = async () => {
+    try {
+      await onSwitch(organization.id);
+    } catch (error) {
+      console.error('Error switching organization:', error);
+    }
+  };
+
+  const handleEdit = async () => {
+    try {
+      await onEdit(organization.id, organization.name);
+    } catch (error) {
+      console.error('Error editing organization:', error);
+    }
+  };
+
   return (
     <div className="flex items-center justify-between py-4">
       <div className="flex items-center space-x-4">
@@ -36,14 +52,14 @@ export const WorkspaceCard: FC<WorkspaceCardProps> = ({
         <Button 
           variant="outline" 
           size="sm"
-          onClick={() => onSwitch(organization.id)}
+          onClick={handleSwitch}  
         >
           Switch
         </Button>
         <Button 
           variant="outline" 
           size="sm"
-          onClick={() => onEdit(organization.id,organization.name)}
+          onClick={handleEdit}  
         >
           Edit
         </Button>

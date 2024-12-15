@@ -4,6 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from "@/hooks/use-toast";
+import LikedNarrativesList from '@/components/settings/liked-narratives/liked-narratives-list';
 import { 
   Sheet,
   SheetContent,
@@ -118,6 +119,33 @@ export default function SettingsPage() {
     }
   };
 
+  const handleWorkspaceSwitch = async (orgId: string): Promise<void> => {
+    try {
+      const success = await handleSwitchOrganization(orgId);
+      if (success) {
+        // Refetch the organization data to update the settings page state
+        await initializeData();
+        await fetchDataSources(orgId);
+        await fetchTeamMembers(orgId);
+        
+        // Give a small delay to ensure state updates are complete
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        toast({
+          title: "Success",
+          description: "Organization switched successfully"
+        });
+      }
+    } catch (error) {
+      console.error('Error switching workspace:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to switch workspace"
+      });
+    }
+  };
+
   // Effects
   useEffect(() => {
     console.log('Initializing settings data');
@@ -189,10 +217,13 @@ export default function SettingsPage() {
                   organizations={organizations}
                   activeOrganization={activeOrganization}
                   onCreateWorkspace={() => setIsCreateOrgModalOpen(true)}
-                  onSwitchWorkspace={handleSwitchOrganization}
+                  onSwitchWorkspace={handleWorkspaceSwitch}
                   onEditWorkspace={handleEditWorkspaceWrapper}
                   onDeleteWorkspace={handleDeleteOrganization}
                 />
+              )}
+              {activeSidebarItem === 'Liked Narratives' && (
+                <LikedNarrativesList />
               )}
               {activeSidebarItem === 'Data sources' && (
                 <DataSourcesList

@@ -1,3 +1,5 @@
+// components/organization-switcher.tsx
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -12,6 +14,7 @@ import {
 import { Building2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { API_URL } from '@/lib/config';
+import { createOrganizationChangeEvent } from '@/utils/events';
 
 interface Organization {
   id: string;
@@ -113,13 +116,12 @@ export function OrganizationSwitcher() {
         router.push('/login');
         return;
       }
-
-      // Find the new organization before making the API call
+  
       const newActiveOrg = organizations.find((org: Organization) => org.id === orgId);
       if (!newActiveOrg) {
         throw new Error('Organization not found');
       }
-
+  
       const response = await fetch(`${API_URL}/authorization/switch-organization/${orgId}`, {
         method: 'POST',
         headers: {
@@ -128,28 +130,30 @@ export function OrganizationSwitcher() {
           'Content-Type': 'application/json',
         },
       });
-
+  
       const data = await response.json();
       
       if (!response.ok) {
         throw new Error(data.error || 'Failed to switch organization');
       }
-
-      // Update active organization immediately
-      setActiveOrganization(newActiveOrg);
+  
+      // Update everything in a specific order
       localStorage.setItem('authToken', data.access_token);
       localStorage.setItem('currentOrgId', orgId);
       localStorage.setItem('currentOrgName', newActiveOrg.name);
       
+      // Update active organization immediately
+      setActiveOrganization(newActiveOrg);
+      
       // Dispatch event for org change
-      window.dispatchEvent(new Event('organizationChanged'));
+      window.dispatchEvent(createOrganizationChangeEvent(newActiveOrg));
       
       toast({
         title: "Success",
         description: "Organization switched successfully"
       });
-      
-      // Reload the page to refresh all data
+  
+      // Reload the page to ensure all components are in sync
       window.location.reload();
     } catch (error) {
       console.error('Error switching organization:', error);

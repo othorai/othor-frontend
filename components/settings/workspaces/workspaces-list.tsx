@@ -15,7 +15,7 @@ interface WorkspacesListProps {
   organizations: Organization[];
   activeOrganization: Organization | null;
   onCreateWorkspace: () => void;
-  onSwitchWorkspace: (orgId: string) => void;
+  onSwitchWorkspace: (orgId: string) => Promise<void>; // Updated to Promise<void>
   onEditWorkspace: (orgId: string, name: string) => Promise<void>;
   onDeleteWorkspace: (orgId: string) => void;
 }
@@ -28,6 +28,14 @@ export const WorkspacesList: FC<WorkspacesListProps> = ({
   onEditWorkspace,
   onDeleteWorkspace
 }) => {
+  const handleSwitch = async (orgId: string) => {
+    try {
+      await onSwitchWorkspace(orgId);
+    } catch (error) {
+      console.error('Error switching workspace:', error);
+    }
+  };
+
   return (
     <Card className="p-6">
       <div className="space-y-6">
@@ -44,7 +52,7 @@ export const WorkspacesList: FC<WorkspacesListProps> = ({
               key={org.id}
               organization={org}
               isActive={activeOrganization?.id === org.id}
-              onSwitch={onSwitchWorkspace}
+              onSwitch={handleSwitch}
               onEdit={onEditWorkspace}
               onDelete={onDeleteWorkspace}
             />

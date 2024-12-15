@@ -1,5 +1,4 @@
-// components/settings/data-sources/data-sources-list.tsx
-import { FC, useState, useCallback } from 'react';
+import { FC, useState, useCallback, useEffect } from 'react';
 import { Plus } from 'lucide-react';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,23 +14,61 @@ interface DataSourcesListProps {
 }
 
 export const DataSourcesList: FC<DataSourcesListProps> = ({
-  dataSources,
+  dataSources = [], // Provide default value to prevent undefined
   onConnectSource,
   onEditSource,
   onDeleteSource,
 }) => {
   const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [currentSources, setCurrentSources] = useState<DataSource[]>([]);
+
+  // Use useEffect to update local state when props change
+  useEffect(() => {
+    setCurrentSources(dataSources);
+  }, [dataSources]);
 
   const handleConnectSource = useCallback(async (sourceData: any) => {
     setIsConnecting(true);
     try {
       await onConnectSource(sourceData);
       setIsConnectModalOpen(false);
+    } catch (error) {
+      console.error('Error connecting source:', error);
     } finally {
       setIsConnecting(false);
     }
   }, [onConnectSource]);
+
+  const handleOpenModal = useCallback(() => {
+    setIsConnectModalOpen(true);
+  }, []);
+
+  const handleCloseModal = useCallback(() => {
+    setIsConnectModalOpen(false);
+  }, []);
+
+  const renderDataSources = () => {
+    if (!currentSources.length) {
+      return (
+        <div className="text-center py-8 text-muted-foreground">
+          No data sources connected. Connect your first data source to get started.
+        </div>
+      );
+    }
+
+    return currentSources.map((source) => (
+      <DataSourceCard
+        key={source.id}
+        dataSource={{
+          ...source,
+          name: source.connection_details?.database || 'N/A'
+        }}
+        onEdit={onEditSource}
+        onDelete={onDeleteSource}
+      />
+    ));
+  };
 
   return (
     <Card className="p-6">
@@ -39,37 +76,22 @@ export const DataSourcesList: FC<DataSourcesListProps> = ({
         <div className="flex justify-between items-center">
           <h3 className="text-lg font-medium">Data Sources</h3>
           <Button
-            onClick={() => setIsConnectModalOpen(true)}
-            disabled={dataSources?.length >= 5}
+            onClick={handleOpenModal}
+            disabled={currentSources.length >= 5}
           >
             <Plus className="w-4 h-4 mr-2" />
-            Connect Data Source ({dataSources?.length || 0}/5)
+            Connect Data Source ({currentSources.length}/5)
           </Button>
         </div>
         
-        <div className="space-y-4">
-          {dataSources?.map((source) => (
-            <DataSourceCard
-              key={source.id}
-              dataSource={{
-                ...source,
-                name: source.connection_details?.database || 'N/A'
-              }}
-              onEdit={onEditSource}
-              onDelete={onDeleteSource}
-            />
-          ))}
-          {(!dataSources || dataSources.length === 0) && (
-            <div className="text-center py-8 text-muted-foreground">
-              No data sources connected. Connect your first data source to get started.
-            </div>
-          )}
+        <div className="space-y-4" key="data-sources-list">
+          {renderDataSources()}
         </div>
       </div>
 
       <ConnectDataSourceModal
         isOpen={isConnectModalOpen}
-        onClose={() => setIsConnectModalOpen(false)}
+        onClose={handleCloseModal}
         onSubmit={handleConnectSource}
         isLoading={isConnecting}
       />

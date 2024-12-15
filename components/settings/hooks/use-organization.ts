@@ -1,8 +1,9 @@
 // components/settings/hooks/use-organization.ts
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from "@/hooks/use-toast";
 import { API_URL } from '@/lib/config';
+import { createOrganizationChangeEvent } from '@/utils/events';
 
 
 interface Organization {
@@ -100,6 +101,23 @@ export function useOrganization(): UseOrganizationReturn {
     }
   }, [toast, activeOrganization]);
 
+  useEffect(() => {
+    const handleOrgChange = (event: CustomEvent<Organization>) => {
+      const newOrg = event.detail;
+      setActiveOrganization(newOrg);
+      // Refetch data for the new organization
+      fetchUserOrganizations();
+    };
+  
+    // Add event listener
+    window.addEventListener('organizationChanged', handleOrgChange as EventListener);
+    
+    // Cleanup function
+    return () => {
+      window.removeEventListener('organizationChanged', handleOrgChange as EventListener);
+    };
+  }, [fetchUserOrganizations]);
+
   const initializeData = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -167,12 +185,28 @@ export function useOrganization(): UseOrganizationReturn {
       if (!response.ok) throw new Error('Failed to switch workspace');
 
       const data = await response.json();
+      const newOrg = organizations.find(org => org.id === orgId);
+      
+      if (!newOrg) {
+        throw new Error('Organization not found');
+      }
+
+      // Update everything in order
       localStorage.setItem('authToken', data.access_token);
-      setActiveOrganization(organizations.find(org => org.id === orgId) || null);
+      localStorage.setItem('currentOrgId', orgId);
+      localStorage.setItem('currentOrgName', newOrg.name);
+      
+      // Update active organization
+      setActiveOrganization(newOrg);
+      
+      // Dispatch the event
+      window.dispatchEvent(createOrganizationChangeEvent(newOrg));
+
       toast({
         title: "Success",
         description: "Workspace switched successfully"
       });
+
       return true;
     } catch (error) {
       console.error('Error switching workspace:', error);

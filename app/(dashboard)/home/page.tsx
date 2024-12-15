@@ -6,11 +6,10 @@ import { useRouter } from 'next/navigation';
 import { NarrativeCard } from '@/components/narratives/card';
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { useStore } from '@/app/(dashboard)/store/store';
 import { format } from 'date-fns';
 import { API_URL } from '@/lib/config';
 
-export interface Article {
+interface Article {
   id: string;
   title: string;
   content: string;
@@ -24,15 +23,17 @@ export interface Article {
 export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [feedData, setFeedData] = useState<Article[]>([]);
   const [username, setUsername] = useState('');
   const router = useRouter();
   const { toast } = useToast();
-  const { narratives, setNarratives } = useStore();
 
+  // Format today's date
   const today = new Date();
   const formattedDate = format(today, "dd MMM yyyy EEEE");
 
   useEffect(() => {
+    // Get username from localStorage
     const email = localStorage.getItem('savedEmail');
     if (email) {
       const name = email.split('@')[0];
@@ -42,16 +43,13 @@ export default function HomePage() {
 
   const fetchNarratives = async () => {
     try {
-      if (narratives.length > 1) {
-        setLoading(false);
-        return;
-      }
-      
       const date = new Date()
       const token = localStorage.getItem('authToken');
       const formattedDate = format(date, 'yyyy-MM-dd');
+      console.log('Token available:', !!token);
 
       if (!token) {
+        console.log('No token found, redirecting to login');
         router.push('/login');
         return;
       }
@@ -64,20 +62,24 @@ export default function HomePage() {
         }
       });
 
+      console.log('Response status:', response.status);
+
       if (response.status === 401) {
+        console.log('Token invalid or expired');
         localStorage.removeItem('authToken');
         router.push('authorization/login');
         return;
       }
 
       const data = await response.json();
+      console.log('Response data:', data);
 
       if (!response.ok) {
         throw new Error(data.error || 'Failed to fetch narratives');
       }
 
       if (data.articles && Array.isArray(data.articles)) {
-        setNarratives(data.articles as Article[]);
+        setFeedData(data.articles);
       } else {
         throw new Error('Invalid response format');
       }
@@ -129,11 +131,11 @@ export default function HomePage() {
         throw new Error('Failed to update like status');
       }
 
-      const updatedNarratives = narratives.map((article: Article) =>
-        article.id === articleId ? { ...article, isLiked: liked } : article
+      setFeedData(prevData =>
+        prevData.map(article =>
+          article.id === articleId ? { ...article, isLiked: liked } : article
+        )
       );
-      
-      setNarratives(updatedNarratives);
 
       toast({
         title: liked ? "Narrative liked" : "Narrative unliked",
@@ -177,11 +179,37 @@ export default function HomePage() {
     );
   }
 
+  // Check if we have the "No Articles Available" response
+  const isNoDataSourcesConnected = 
+    feedData.length === 1 && 
+    feedData[0].title === "No Articles Available";
+
+  if (isNoDataSourcesConnected) {
+    return (
+      <div className="container mx-auto px-4 py-8 flex items-center justify-center min-h-[calc(100vh-200px)]">
+        <Card className="w-full max-w-2xl p-8 text-center">
+          <h2 className="text-3xl font-bold text-gray-900 mb-4">
+            No data sources connected
+          </h2>
+          <p className="text-lg text-gray-600 mb-6">
+            Please connect a data source to generate narratives
+          </p>
+          <button 
+            onClick={() => router.push('/settings')} 
+            className="px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors"
+          >
+            Connect Data Source
+          </button>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto px-2 py-8 max-w-4xl">
       <div className="space-y-6">
-        {narratives.length > 0 ? (
-          narratives.map((article: Article) => (
+        {feedData.length > 0 ? (
+          feedData.map((article) => (
             <NarrativeCard
               key={article.id}
               title={article.title}
