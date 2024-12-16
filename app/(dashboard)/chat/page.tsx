@@ -5,6 +5,10 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from "@/hooks/use-toast";
 import { API_URL } from '@/lib/config';
+import { useChat } from '@/context/ChatContext';
+import { format } from 'date-fns';
+
+
 import { 
   Sheet,
   SheetContent,
@@ -27,22 +31,31 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
 export default function ChatPage() {
   // State management
-  const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
-  const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(true);
-  const [sessionId, setSessionId] = useState('');
-  const [chatHistory, setChatHistory] = useState<ChatSession[]>([]);
-  const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
   const [showLogo, setShowLogo] = useState(true);
-  const [documents, setDocuments] = useState<Document[]>([]);
   const [showDocumentSidebar, setShowDocumentSidebar] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
 
   const router = useRouter();
   const { toast } = useToast();
+
+  const {
+    messages,
+    setMessages,
+    sessionId,
+    setSessionId,
+    selectedChatId,
+    setSelectedChatId,
+    documents,
+    setDocuments,
+    suggestions,
+    setSuggestions,
+    lastFetchDate,
+    setLastFetchDate,
+  } = useChat();
 
   // Initial setup
   useEffect(() => {
@@ -51,9 +64,14 @@ export default function ChatPage() {
       router.push('/login');
       return;
     }
-    fetchSuggestions();
-    fetchChatHistory();
-  }, [router]);
+
+    const today = format(new Date(), 'yyyy-MM-dd');
+    if (lastFetchDate !== today) {
+      fetchSuggestions();
+      fetchChatHistory();
+      setLastFetchDate(today);
+    }
+  }, [router, lastFetchDate]);
 
   // API calls
   const fetchSuggestions = async () => {
@@ -77,25 +95,59 @@ export default function ChatPage() {
     }
   };
 
+  interface ChatSessionHistory {
+    id: string;
+    title: string;
+    timestamp: string;
+    last_message?: string;
+    created_at: string;
+    updated_at: string;
+  }
+  
+  // In the ChatContext or component state:
+  const [chatHistory, setChatHistory] = useState<ChatSessionHistory[]>([]);
+  
+  // In the fetchChatHistory function:
   const fetchChatHistory = async () => {
     try {
       setIsLoadingHistory(true);
       const token = localStorage.getItem('authToken');
       if (!token) return;
-
+  
       const response = await fetch(`${API_URL}/chatbot/user-sessions`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Accept': 'application/json',
         }
       });
-
-      if (response.ok) {
-        const data = await response.json();
-        setChatHistory(data);
+  
+      if (!response.ok) {
+        throw new Error('Failed to fetch chat history');
       }
+  
+      const data = await response.json();
+      console.log('Chat history response:', data); // Debug log
+  
+      // Transform the data to match our ChatSession interface
+      const formattedHistory: ChatSession[] = data.map((session: any) => ({
+        id: session.session_id || '',
+        title: session.last_message?.split(' ').slice(0, 4).join(' ') || 'New Chat',
+        timestamp: session.last_interaction || new Date().toISOString(),
+        created_at: session.created_at || new Date().toISOString(),
+        updated_at: session.updated_at || new Date().toISOString(),
+        question_count: session.question_count || 0,
+      }));
+  
+      console.log('Formatted chat history:', formattedHistory); // Debug log
+      setChatHistory(formattedHistory);
+  
     } catch (error) {
       console.error('Error fetching chat history:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to fetch chat history"
+      });
       setChatHistory([]);
     } finally {
       setIsLoadingHistory(false);
@@ -105,19 +157,19 @@ export default function ChatPage() {
   // Chat handlers
   const handleSendMessage = async (text = inputText) => {
     if (!text.trim() || isLoading) return;
-
+  
     try {
       setIsLoading(true);
       setShowSuggestions(false);
       setShowLogo(false);
-
+  
       const token = localStorage.getItem('authToken');
       if (!token) throw new Error('No auth token available');
-
+  
       const userMessage: Message = { text, isUser: true };
-      setMessages(prev => [...prev, userMessage]);
+      setMessages([...messages, userMessage]);
       setInputText('');
-
+  
       const response = await fetch(`${API_URL}/chatbot/chat`, {
         method: 'POST',
         headers: {
@@ -131,26 +183,41 @@ export default function ChatPage() {
           document_id: documents.length > 0 ? documents[0].id : null
         })
       });
-
+  
       const data = await response.json();
       
       if (!response.ok) {
         throw new Error(data.error || 'Failed to send message');
       }
-
+  
       const botMessage: Message = { 
         text: data.response || "I'm sorry, but I couldn't process that request.", 
         isUser: false 
       };
-      setMessages(prev => [...prev, botMessage]);
-
+      
+      // Update messages with both user and bot messages
+      setMessages([...messages, userMessage, botMessage]);
+  
+      // If this is a new chat session, create entry
+      if (!sessionId && data.session_id) {
+        const newSession: ChatSession = {
+          id: data.session_id,
+          title: text.split(' ').slice(0, 4).join(' '),
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          timestamp: new Date().toISOString(),
+          question_count: 1,
+        };
+        setChatHistory([newSession, ...chatHistory]);
+      }
+  
       if (data.session_id) {
         setSessionId(data.session_id);
       }
-
+  
       setShowSuggestions(true);
       fetchChatHistory();
-
+  
     } catch (error) {
       console.error('Error sending message:', error);
       toast({
@@ -164,60 +231,95 @@ export default function ChatPage() {
   };
 
 
-const handleChatSelect = async (chatId: string) => {
-  try {
-    setIsLoading(true);
-    setShowSuggestions(false);
-    setShowLogo(false);
-    setSelectedChatId(chatId);
-    setSessionId(chatId);
-
-    const token = localStorage.getItem('authToken');
-    if (!token) return;
-
-    const response = await fetch(`${API_URL}/chatbot/session-chats/${sessionId}`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Accept': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to load chat session');
-    }
-
-    const sessionChats = await response.json();
-
-    // Format the messages
-    const formattedMessages = sessionChats
-      .map((chat: any) => ([
-        { text: chat.question, isUser: true },
-        { text: chat.answer, isUser: false }
-      ]))
-      .flat();
-
-    setMessages(formattedMessages);
-
-    // Check for documents in this session
-    if (sessionChats.documents?.length > 0) {
-      setDocuments(sessionChats.documents);
-      setShowDocumentSidebar(true);
-    } else {
+  const handleChatSelect = async (chatId: string) => {
+    try {
+      if (!chatId) {
+        throw new Error('No chat ID provided');
+      }
+  
+      setIsLoading(true);
+      setShowSuggestions(false);
+      setShowLogo(false);
+      
+      // Clean the session ID
+      const cleanSessionId = chatId.trim();
+      
+      setSelectedChatId(cleanSessionId);
+      setSessionId(cleanSessionId);
+  
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        throw new Error('No auth token available');
+      }
+  
+      // Fetch chat messages
+      const response = await fetch(`${API_URL}/chatbot/session-chats/${cleanSessionId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+        },
+      });
+  
+      if (!response.ok) {
+        throw new Error(
+          response.status === 422 
+            ? 'Invalid session format' 
+            : `Failed to load chat session (${response.status})`
+        );
+      }
+  
+      const sessionChats = await response.json();
+  
+      if (!Array.isArray(sessionChats)) {
+        throw new Error('Invalid response format');
+      }
+  
+      // Format the messages
+      const formattedMessages: Message[] = sessionChats
+        .map((chat: any) => ([
+          { text: chat.question, isUser: true },
+          { text: chat.answer, isUser: false }
+        ]))
+        .flat();
+  
+      setMessages(formattedMessages);
+  
+      // Try to fetch documents if available
+      try {
+        const documentsResponse = await fetch(`${API_URL}/chatbot/get_documents/${cleanSessionId}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json',
+          },
+        });
+  
+        if (documentsResponse.ok) {
+          const documentsData = await documentsResponse.json();
+          if (documentsData.documents?.length > 0) {
+            setDocuments(documentsData.documents);
+            setShowDocumentSidebar(true);
+          }
+        }
+      } catch (docError) {
+        console.warn('Failed to fetch documents:', docError);
+        // Don't throw here, just log the warning
+      }
+  
+    } catch (error) {
+      console.error('Error loading chat session:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to load chat session"
+      });
+      // Reset states on error
+      setMessages([]);
       setDocuments([]);
       setShowDocumentSidebar(false);
+    } finally {
+      setIsLoading(false);
     }
-
-  } catch (error) {
-    console.error('Error loading chat session:', error);
-    toast({
-      variant: "destructive",
-      title: "Error",
-      description: "Failed to load chat session"
-    });
-  } finally {
-    setIsLoading(false);
-  }
-};
+  };
 
 
 const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -237,12 +339,11 @@ const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     setUploadingFile(true);
     setShowLogo(false);
     
-    // Add upload progress message
     const uploadMessage: Message = { 
       text: `Uploading file: ${file.name}...`, 
       isUser: true 
     };
-    setMessages(prev => [...prev, uploadMessage]);
+    setMessages([...messages, uploadMessage]);
 
     const formData = new FormData();
     formData.append('document', file);
@@ -272,14 +373,15 @@ const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
       text: `File uploaded successfully. You can now ask questions about ${file.name}.`, 
       isUser: false 
     };
-    setMessages(prev => [...prev, successMessage]);
+    setMessages([...messages, uploadMessage, successMessage]);
 
     if (data.session_id) {
       setSessionId(data.session_id);
     }
 
     if (data.document) {
-      setDocuments(prev => [...prev, data.document]);
+      // Properly type the document update
+      setDocuments([...documents, data.document]);
       setShowDocumentSidebar(true);
     }
 
@@ -287,12 +389,17 @@ const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
 
   } catch (error) {
     console.error('Upload error:', error);
+    const uploadMessage: Message = { 
+      text: `Uploading file: ${file.name}...`, 
+      isUser: true 
+    };
+    
     // Add error message to chat
     const errorMessage: Message = { 
       text: `Failed to upload file: ${error instanceof Error ? error.message : 'Unknown error'}`, 
       isUser: false 
     };
-    setMessages(prev => [...prev, errorMessage]);
+    setMessages([...messages, uploadMessage, errorMessage]);
 
     toast({
       variant: "destructive",
@@ -317,6 +424,7 @@ const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     setShowDocumentSidebar(false);
     setInputText('');
     fetchSuggestions();
+    setMessages([]); 
   };
 
   return (

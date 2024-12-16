@@ -1,4 +1,4 @@
-// components/narratives/suggested-questions.tsx
+'use client';
 
 import { useState, useEffect } from 'react';
 import { StarIcon } from 'lucide-react';
@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { API_URL } from '@/lib/config';
+import { useNarratives } from '@/context/NarrativesContext';
 
 interface SuggestedQuestionsProps {
   articleId: string;
@@ -24,15 +25,20 @@ export function SuggestedQuestions({
   timePeriod,
   metrics
 }: SuggestedQuestionsProps) {
-  const [questions, setQuestions] = useState<string[]>([]);
   const [selectedQuestion, setSelectedQuestion] = useState<string | null>(null);
   const [answer, setAnswer] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const { suggestedQuestions, setSuggestedQuestions } = useNarratives();
 
   // Fetch questions when component mounts
   const fetchQuestions = async () => {
     try {
+      // Check if we already have cached questions for this article
+      if (suggestedQuestions[articleId]) {
+        return;
+      }
+
       setIsLoading(true);
       const token = localStorage.getItem('authToken');
       const response = await fetch(`${API_URL}/narrative/article/${articleId}/suggested_questions`, {
@@ -43,7 +49,9 @@ export function SuggestedQuestions({
 
       if (!response.ok) throw new Error('Failed to fetch questions');
       const data = await response.json();
-      setQuestions(data);
+      
+      // Cache the questions
+      setSuggestedQuestions(articleId, data);
     } catch (error) {
       console.error('Error fetching questions:', error);
       toast({
@@ -102,6 +110,8 @@ export function SuggestedQuestions({
     fetchQuestions();
   }, [articleId]);
 
+  // Get questions from cache or return empty array
+  const questions = suggestedQuestions[articleId] || [];
   if (questions.length === 0) return null;
 
   return (

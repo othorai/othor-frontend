@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { format } from 'date-fns';
 import { API_URL } from '@/lib/config';
+import { useNarratives } from '@/context/NarrativesContext'; 
 
 interface Article {
   id: string;
@@ -27,6 +28,8 @@ export default function HomePage() {
   const [username, setUsername] = useState('');
   const router = useRouter();
   const { toast } = useToast();
+  const { narratives, setNarratives, lastFetchDate, setLastFetchDate } = useNarratives();
+
 
   // Format today's date
   const today = new Date();
@@ -43,13 +46,17 @@ export default function HomePage() {
 
   const fetchNarratives = async () => {
     try {
-      const date = new Date()
-      const token = localStorage.getItem('authToken');
+      const date = new Date();
       const formattedDate = format(date, 'yyyy-MM-dd');
-      console.log('Token available:', !!token);
+      
+      // Check if we already have data for today
+      if (lastFetchDate === formattedDate && narratives.length > 0) {
+        setLoading(false);
+        return;
+      }
 
+      const token = localStorage.getItem('authToken');
       if (!token) {
-        console.log('No token found, redirecting to login');
         router.push('/login');
         return;
       }
@@ -62,24 +69,27 @@ export default function HomePage() {
         }
       });
 
-      console.log('Response status:', response.status);
-
       if (response.status === 401) {
-        console.log('Token invalid or expired');
         localStorage.removeItem('authToken');
         router.push('authorization/login');
         return;
       }
 
       const data = await response.json();
-      console.log('Response data:', data);
+      console.log('Received data:', data); // Debug log
 
       if (!response.ok) {
         throw new Error(data.error || 'Failed to fetch narratives');
       }
 
-      if (data.articles && Array.isArray(data.articles)) {
-        setFeedData(data.articles);
+      if (data.articles) {
+        // Check if we got the "No Articles Available" message
+        if (data.articles.length === 1 && data.articles[0].title === "No Articles Available") {
+          setNarratives([]);
+        } else {
+          setNarratives(data.articles);
+        }
+        setLastFetchDate(formattedDate);
       } else {
         throw new Error('Invalid response format');
       }
@@ -131,11 +141,11 @@ export default function HomePage() {
         throw new Error('Failed to update like status');
       }
 
-      setFeedData(prevData =>
-        prevData.map(article =>
-          article.id === articleId ? { ...article, isLiked: liked } : article
-        )
+      // Update both local state and context
+      const updatedNarratives = narratives.map(article =>
+        article.id === articleId ? { ...article, isLiked: liked } : article
       );
+      setNarratives(updatedNarratives);
 
       toast({
         title: liked ? "Narrative liked" : "Narrative unliked",
@@ -151,6 +161,7 @@ export default function HomePage() {
       });
     }
   };
+
 
   if (loading) {
     return (
@@ -208,8 +219,8 @@ export default function HomePage() {
   return (
     <div className="container mx-auto px-2 py-8 max-w-4xl">
       <div className="space-y-6">
-        {feedData.length > 0 ? (
-          feedData.map((article) => (
+        {narratives && narratives.length > 0 ? (
+          narratives.map((article) => (
             <NarrativeCard
               key={article.id}
               title={article.title}
@@ -225,7 +236,7 @@ export default function HomePage() {
           ))
         ) : (
           <Card className="p-6 text-center">
-            <p className="text-gray-600">No narratives available</p>
+            <p className="text-gray-600">No narratives available for {format(new Date(), 'dd MMM yyyy')}</p>
           </Card>
         )}
       </div>

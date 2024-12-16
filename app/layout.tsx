@@ -3,6 +3,8 @@ import './globals.css';
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "@/context/auth-context";
+import { NarrativesProvider } from '@/context/NarrativesContext';
+import { ChatProvider } from '@/context/ChatContext';
 
 export const metadata = {
   title: 'Othor AI',
@@ -24,7 +26,11 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <AuthProvider>
-            {children}
+            <NarrativesProvider>
+              <ChatProvider>
+                {children}
+              </ChatProvider>
+            </NarrativesProvider>
           </AuthProvider>
           <Toaster />
         </ThemeProvider>

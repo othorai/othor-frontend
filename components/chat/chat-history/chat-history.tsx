@@ -90,7 +90,7 @@ export function ChatHistory({
           <div className="p-4 space-y-3">
             {[...Array(5)].map((_, i) => (
               <div key={i} className="animate-pulse">
-                <div className="h-12 bg-gray-100 rounded-lg"></div>
+                <div className="h-12 bg-gray-100 rounded-lg" />
               </div>
             ))}
           </div>
