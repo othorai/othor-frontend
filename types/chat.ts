@@ -14,18 +14,6 @@ export interface Document {
   data: string;
 }
 
-// Chat Session interface
-export interface ChatSession {
-  id: string;
-  title: string;
-  last_message?: string;
-  created_at: string;
-  updated_at: string;
-  timestamp: string; // Add required timestamp field
-  documents?: Document[];
-  question_count?: number;
-}
-
 // Props for various components
 export interface ChatHistoryProps {
   isLoading: boolean;
@@ -114,7 +102,7 @@ export interface ChatState {
   selectedDocument: Document | null;
 }
 
-// API Response types
+
 export interface ChatResponse {
   response: string;
   session_id: string;
@@ -127,4 +115,56 @@ export interface FileUploadResponse {
 
 export interface SuggestedQuestionsResponse {
   questions: string[];
+}
+
+interface BaseChat {
+  session_id?: string;
+  initial_message?: string;
+  title?: string;
+  last_interaction?: string;
+  timestamp?: string;
+  question_count?: number;
+}
+
+export interface ChatSessionHistory {
+  session_id: string;
+  initial_message?: string;
+  title?: string;
+  last_interaction?: string;
+  timestamp?: string;
+  created_at?: string;
+  updated_at?: string;
+  last_message?: string;
+  question_count: number;
+}
+
+export interface ChatSession {
+  id: string;             
+  session_id: string;     
+  initial_message?: string;
+  title?: string;
+  last_interaction: string; 
+  timestamp?: string;
+  question_count: number;  
+  documents?: Document[];
+}
+
+export interface PageChatSession {
+  id: string;
+  initial_message: string;
+  last_interaction: string;
+  timestamp: string;
+  question_count: number;
+}
+
+export interface Message {
+  text: string;
+  isUser: boolean;
+}
+
+export interface Document {
+  id: string;
+  filename: string;
+  type: string;
+  data: string;
 }

@@ -20,6 +20,7 @@ import { useTeam } from '@/components/settings/hooks/use-team';
 
 // Components
 import { Sidebar } from '@/components/settings/sidebar';
+import { useChat } from '@/context/ChatContext';
 import { WorkspacesList } from '@/components/settings/workspaces/workspaces-list';
 import { DataSourcesList } from '@/components/settings/data-sources/data-sources-list';
 import { TeamList } from '@/components/settings/team/team-list';
@@ -35,6 +36,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
 import HelpAndSupport from '@/components/settings/help-support/help-support-list';
+
+const { clearStorage } = useChat();
 
 export default function SettingsPage() {
   // State
@@ -100,6 +103,7 @@ export default function SettingsPage() {
   const handleLogout = async () => {
     try {
       localStorage.clear();
+      clearStorage();
       window.location.href = '/login';
     } catch (error) {
       console.error('Error logging out:', error);

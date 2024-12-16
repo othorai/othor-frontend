@@ -1,11 +1,11 @@
 // components/chat/chat-history/chat-group.tsx
-import { useEffect, useState } from 'react';
 import { ChatItem } from './chat-item';
 
 interface ChatSession {
   id: string;
-  title: string;
-  timestamp: string;
+  initial_message: string;
+  last_interaction: string;
+  question_count: number;
 }
 
 interface ChatGroupProps {
@@ -21,21 +21,20 @@ export function ChatGroup({
   selectedChatId,
   onChatSelect
 }: ChatGroupProps) {
-  console.log(`Rendering chat group: ${groupName}`, chats); // Debug log
-
   return (
-    <div>
-      <div className="px-4 py-2 text-xs font-medium text-gray-500 sticky top-0 bg-white z-10">
+    <div className="space-y-1">
+      <div className="px-4 py-2 text-xs font-medium text-gray-500">
         {groupName}
       </div>
       {chats.map((chat) => (
         <ChatItem
           key={chat.id}
           id={chat.id}
-          title={chat.title || 'New Chat'}
-          timestamp={chat.timestamp}
+          initial_message={chat.initial_message}
+          timestamp={chat.last_interaction}
           isSelected={selectedChatId === chat.id}
-          onClick={() => onChatSelect(chat.id)}
+          question_count={chat.question_count}
+          onClick={onChatSelect}
         />
       ))}
     </div>

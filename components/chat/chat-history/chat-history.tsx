@@ -1,14 +1,14 @@
 // components/chat/chat-history/chat-history.tsx
-
 import { MessageSquare } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { ChatGroup } from './chat-group';
 
-
 interface ChatSession {
   id: string;
-  title: string;
+  initial_message: string;
   timestamp: string;
+  last_interaction: string;
+  question_count: number;
 }
 
 interface ChatHistoryProps {
@@ -18,9 +18,6 @@ interface ChatHistoryProps {
   onNewChat: () => void;
   onChatSelect: (id: string) => void;
 }
-
-type GroupKey = 'Today' | 'Yesterday' | 'Previous 7 days' | 'Previous 30 Days' | 'Older';
-type ChatGroups = Record<GroupKey, ChatSession[]>;
 
 export function ChatHistory({
   isLoading,
@@ -39,7 +36,7 @@ export function ChatHistory({
     const monthAgo = new Date(today);
     monthAgo.setMonth(monthAgo.getMonth() - 1);
 
-    const groups: ChatGroups = {
+    const groups: Record<string, ChatSession[]> = {
       'Today': [],
       'Yesterday': [],
       'Previous 7 days': [],
@@ -48,7 +45,7 @@ export function ChatHistory({
     };
 
     chats.forEach(chat => {
-      const chatDate = new Date(chat.timestamp);
+      const chatDate = new Date(chat.last_interaction);
       if (chatDate >= today) {
         groups['Today'].push(chat);
       } else if (chatDate >= yesterday) {
@@ -62,44 +59,40 @@ export function ChatHistory({
       }
     });
 
-    return Object.entries(groups).filter(([_, chats]) => chats.length > 0) as [string, ChatSession[]][];
+    return Object.entries(groups).filter(([_, chats]) => chats.length > 0);
   };
 
   return (
-    <div className="w-64 border-r bg-white flex flex-col h-full overflow-hidden">
-      {/* New Chat Button */}
-      <div className="flex-shrink-0 p-4 border-b">
-        <Button 
-          onClick={onNewChat}
-          className="w-full justify-start gap-2" 
-          variant="ghost"
-        >
-          <MessageSquare size={20} />
-          New Chat
-        </Button>
-      </div>
+    <div className="w-80 h-full border-r border-gray-200 flex flex-col bg-white">
+      <Button
+        onClick={onNewChat}
+        className="flex items-center gap-2 m-4 w-[calc(100%-2rem)]"
+        variant="outline"
+      >
+        <MessageSquare className="w-4 h-4" />
+        Start New Chat
+      </Button>
 
-      {/* Chat History Header */}
-      <div className="flex-shrink-0 px-3 py-2 text-sm font-medium text-gray-500 border-b">
+      <div className="px-4 py-2 text-sm font-medium text-gray-500">
         Chat History
       </div>
 
-      {/* Chat List */}
-      <div className="flex-1 overflow-y-auto min-h-0"> 
+      <div className="flex-1 overflow-y-auto">
         {isLoading ? (
-          <div className="p-4 space-y-3">
+          <div className="space-y-2 p-4">
             {[...Array(5)].map((_, i) => (
-              <div key={i} className="animate-pulse">
-                <div className="h-12 bg-gray-100 rounded-lg" />
-              </div>
+              <div
+                key={i}
+                className="h-12 bg-gray-100 animate-pulse rounded-md"
+              />
             ))}
           </div>
         ) : chatHistory.length === 0 ? (
-          <div className="px-4 py-3 text-sm text-gray-500">
+          <div className="p-4 text-sm text-gray-500">
             No chat history yet
           </div>
         ) : (
-          <div>
+          <div className="space-y-4">
             {groupChats(chatHistory).map(([groupName, chats]) => (
               <ChatGroup
                 key={groupName}

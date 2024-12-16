@@ -7,7 +7,15 @@ import { useToast } from "@/hooks/use-toast";
 import { API_URL } from '@/lib/config';
 import { useChat } from '@/context/ChatContext';
 import { format } from 'date-fns';
+import { usePathname } from 'next/navigation';
 
+import { 
+  Message, 
+  Document, 
+  ChatSession, 
+  ChatSessionHistory, 
+  PageChatSession 
+} from '@/types/chat';
 
 import { 
   Sheet,
@@ -24,8 +32,6 @@ import { ChatInputContainer } from '@/components/chat/chat-input/chat-input-cont
 import { Button } from "@/components/ui/button";
 import { DocumentContainer } from '@/components/chat/document-sidebar/document-container';
 
-// Types
-import { Message, Document, ChatSession } from '@/types/chat';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
@@ -43,11 +49,13 @@ export default function ChatPage() {
   const { toast } = useToast();
 
   const {
+    setChatHistory, 
     messages,
     setMessages,
     sessionId,
     setSessionId,
     selectedChatId,
+    chatHistory,
     setSelectedChatId,
     documents,
     setDocuments,
@@ -55,23 +63,40 @@ export default function ChatPage() {
     setSuggestions,
     lastFetchDate,
     setLastFetchDate,
+    fetchChatHistory,
   } = useChat();
 
   // Initial setup
+  const pathname = usePathname();
+
   useEffect(() => {
     const token = localStorage.getItem('authToken');
     if (!token) {
       router.push('/login');
       return;
     }
+  }, [router]);
 
-    const today = format(new Date(), 'yyyy-MM-dd');
-    if (lastFetchDate !== today) {
-      fetchSuggestions();
-      fetchChatHistory();
-      setLastFetchDate(today);
-    }
-  }, [router, lastFetchDate]);
+  useEffect(() => {
+    const loadInitialData = async () => {
+      const token = localStorage.getItem('authToken');
+      if (!token) return;
+  
+      setIsLoadingHistory(true);
+      try {
+        await Promise.all([
+          fetchChatHistory(), // Using context's function
+          fetchSuggestions()
+        ]);
+      } catch (error) {
+        console.error('Error loading initial data:', error);
+      } finally {
+        setIsLoadingHistory(false);
+      }
+    };
+  
+    loadInitialData();
+  }, [pathname]);
 
   // API calls
   const fetchSuggestions = async () => {
@@ -93,67 +118,8 @@ export default function ChatPage() {
     } catch (error) {
       console.error('Error fetching suggestions:', error);
     }
-  };
-
-  interface ChatSessionHistory {
-    id: string;
-    title: string;
-    timestamp: string;
-    last_message?: string;
-    created_at: string;
-    updated_at: string;
-  }
+  }; 
   
-  // In the ChatContext or component state:
-  const [chatHistory, setChatHistory] = useState<ChatSessionHistory[]>([]);
-  
-  // In the fetchChatHistory function:
-  const fetchChatHistory = async () => {
-    try {
-      setIsLoadingHistory(true);
-      const token = localStorage.getItem('authToken');
-      if (!token) return;
-  
-      const response = await fetch(`${API_URL}/chatbot/user-sessions`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json',
-        }
-      });
-  
-      if (!response.ok) {
-        throw new Error('Failed to fetch chat history');
-      }
-  
-      const data = await response.json();
-      console.log('Chat history response:', data); // Debug log
-  
-      // Transform the data to match our ChatSession interface
-      const formattedHistory: ChatSession[] = data.map((session: any) => ({
-        id: session.session_id || '',
-        title: session.last_message?.split(' ').slice(0, 4).join(' ') || 'New Chat',
-        timestamp: session.last_interaction || new Date().toISOString(),
-        created_at: session.created_at || new Date().toISOString(),
-        updated_at: session.updated_at || new Date().toISOString(),
-        question_count: session.question_count || 0,
-      }));
-  
-      console.log('Formatted chat history:', formattedHistory); // Debug log
-      setChatHistory(formattedHistory);
-  
-    } catch (error) {
-      console.error('Error fetching chat history:', error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to fetch chat history"
-      });
-      setChatHistory([]);
-    } finally {
-      setIsLoadingHistory(false);
-    }
-  };
-
   // Chat handlers
   const handleSendMessage = async (text = inputText) => {
     if (!text.trim() || isLoading) return;
@@ -200,16 +166,21 @@ export default function ChatPage() {
   
       // If this is a new chat session, create entry
       if (!sessionId && data.session_id) {
-        const newSession: ChatSession = {
-          id: data.session_id,
+        const newSession: ChatSessionHistory = {
+          session_id: data.session_id,
+          initial_message: text,
           title: text.split(' ').slice(0, 4).join(' '),
+          last_interaction: new Date().toISOString(),
+          timestamp: new Date().toISOString(),
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
-          timestamp: new Date().toISOString(),
-          question_count: 1,
+          last_message: text,
+          question_count: 1
         };
         setChatHistory([newSession, ...chatHistory]);
       }
+      
+      
   
       if (data.session_id) {
         setSessionId(data.session_id);
@@ -427,41 +398,53 @@ const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     setMessages([]); 
   };
 
+  const transformedHistory: PageChatSession[] = chatHistory.map((session) => {
+    const interactionTime = 
+      session.last_interaction || 
+      session.timestamp || 
+      session.updated_at || 
+      new Date().toISOString();
+  
+    return {
+      id: session.session_id,
+      initial_message: session.initial_message || session.title || 'New Chat',
+      last_interaction: interactionTime,
+      timestamp: interactionTime,
+      question_count: session.question_count
+    };
+  });
+
+
   return (
     // Update the main container height class
 <div className="flex h-[calc(100vh-2rem)] md:h-[calc(100vh-5rem)]">
 <div className="md:hidden fixed top-4 left-4 z-[60]">
-    <Sheet>
-      <SheetTrigger asChild>
-        <Button variant="outline" size="icon">
-          <Menu className="h-6 w-6" />
-        </Button>
-      </SheetTrigger>
-      <SheetContent side="left" className="w-80 p-0">
-        <SheetTitle className="sr-only">Chat History</SheetTitle>
-        <div className="h-full overflow-y-auto">
-          <ChatHistory
-            isLoading={isLoadingHistory}
-            chatHistory={chatHistory}
-            selectedChatId={selectedChatId}
-            onNewChat={handleNewChat}
-            onChatSelect={(id) => {
-              handleChatSelect(id);
-              const closeButton = document.querySelector('[data-sheet-close]') as HTMLButtonElement;
-              closeButton?.click();
-            }}
-          />
-        </div>
-      </SheetContent>
-    </Sheet>
-  </div>
+  <Sheet>
+    <SheetContent side="left" className="w-80 p-0">
+      <SheetTitle className="sr-only">Chat History</SheetTitle>
+      <div className="h-full overflow-y-auto">
+        <ChatHistory
+          isLoading={isLoadingHistory}
+          chatHistory={transformedHistory}
+          selectedChatId={selectedChatId}
+          onNewChat={handleNewChat}
+          onChatSelect={(id) => {
+            handleChatSelect(id);
+            const closeButton = document.querySelector('[data-sheet-close]') as HTMLButtonElement;
+            closeButton?.click();
+          }}
+        />
+      </div>
+    </SheetContent>
+  </Sheet>
+</div>
 
 
       {/* Desktop Chat History */}
       <div className="hidden md:block">
         <ChatHistory
           isLoading={isLoadingHistory}
-          chatHistory={chatHistory}
+          chatHistory={transformedHistory}
           selectedChatId={selectedChatId}
           onNewChat={handleNewChat}
           onChatSelect={handleChatSelect}
