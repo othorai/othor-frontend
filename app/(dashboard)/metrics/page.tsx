@@ -9,6 +9,8 @@ import MetricCard from '@/components/metrics/MetricCard';
 import type { MetricData } from '@/components/metrics/MetricCard';
 import { ChevronLeft } from 'lucide-react'; // Add this import
 import { API_URL } from '@/lib/config';
+import { useMetrics } from '@/context/MetricsContext';
+import { format } from 'date-fns';
 
 
 const currentScopeOptions = [
@@ -31,22 +33,46 @@ const resolutionOptions = [
   { label: 'Monthly', value: 'monthly' },
 ];
 
+interface LastFetchParams {
+  scope: string;
+  resolution: string;
+  isForecast: boolean;
+  wasActiveMetric: boolean;
+}
+
 const DEFAULT_FORECAST_METRICS = ['revenue', 'costs', 'units_sold', 'repeat_customers'];
 
 function MetricsPage() {
-  const [metricCards, setMetricCards] = useState<Record<string, MetricData>>({});
   const [loading, setLoading] = useState(true);
-  const [selectedMetric, setSelectedMetric] = useState<string | null>(null);
-  const [scope, setScope] = useState('this_year');
-  const [resolution, setResolution] = useState('monthly');
-  const [isForecast, setIsForecast] = useState(false);
-  const [forecastableMetrics, setForecastableMetrics] = useState<string[]>(DEFAULT_FORECAST_METRICS);
   const router = useRouter();
   const [isInitialized, setIsInitialized] = useState(false);
   const { toast: showToast } = useToast();
   const initializationRef = useRef(false);
-  const [metricIds, setMetricIds] = useState<Record<string, number>>({});
+  const {
+    metricCards,
+    setMetricCards,
+    selectedMetric,
+    setSelectedMetric,
+    scope,
+    setScope,
+    resolution,
+    setResolution,
+    isForecast,
+    setIsForecast,
+    forecastableMetrics,
+    setForecastableMetrics,
+    metricIds,
+    setMetricIds,
+    lastFetchDate,
+    setLastFetchDate,
+  } = useMetrics();
 
+  const lastFetchRef = useRef<LastFetchParams>({
+    scope: 'this_week',
+    resolution: 'daily',
+    isForecast: false,
+    wasActiveMetric: false
+  });
 
   const transformCurrentData = (data: any): Record<string, MetricData> => {
     const transformed: Record<string, MetricData> = {};
@@ -146,115 +172,178 @@ function MetricsPage() {
     selectedMetric,
   }), [scope, resolution, isForecast, selectedMetric]);
 
+  const handleFetchMetrics = useCallback(
+    async (
+      currentScope: string,
+      currentResolution: string,
+      isForecasting: boolean,
+      currentMetric: string | null
+    ) => {
+      try {
+        setLoading(true);
+        const token = localStorage.getItem('authToken');
+        if (!token) {
+          router.push('/login');
+          return;
+        }
   
-  const fetchMetricCards = useCallback(async () => {
-    try {
-      setLoading(true);
-      const token = localStorage.getItem('authToken');
-      if (!token) {
-        router.push('/login');
-        return;
-      }
+        // Only check cache if no parameters changed and it's not a forecast
+        const today = format(new Date(), 'yyyy-MM-dd');
+        const lastFetch = lastFetchRef.current;
+        const paramsChanged = 
+          currentScope !== lastFetch.scope ||
+          currentResolution !== lastFetch.resolution;
   
-      let url = '';
-      if (isForecast && selectedMetric && metricIds[selectedMetric.toLowerCase()]) {
-        url = `${API_URL}/metrics/metric_forecast?metric_id=${metricIds[selectedMetric.toLowerCase()]}&forecast_duration=${scope}&resolution=${resolution}`;
-      } else {
-        url = `${API_URL}/metrics/metric_cards?scope=${scope}&resolution=${resolution}`;
-      }
+        if (!isForecasting && !paramsChanged && lastFetchDate === today && Object.keys(metricCards).length > 0) {
+          setLoading(false);
+          return;
+        }
   
-      const response = await fetch(url, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+        let url = '';
+        if (isForecasting && currentMetric && metricIds[currentMetric.toLowerCase()]) {
+          url = `${API_URL}/metrics/metric_forecast?metric_id=${
+            metricIds[currentMetric.toLowerCase()]
+          }&forecast_duration=${currentScope}&resolution=${currentResolution}`;
+        } else {
+          url = `${API_URL}/metrics/metric_cards?scope=${currentScope}&resolution=${currentResolution}`;
+        }
   
-      const data = await response.json();
+        console.log('Fetching metrics from:', url);
   
-      if (!response.ok) {
-        throw new Error(`Failed to fetch metrics: ${data.error || response.statusText}`);
-      }
-  
-      const transformedData = isForecast ? transformForecastData(data) : transformCurrentData(data);
-      
-      if (Object.keys(transformedData).length > 0) {
-        setMetricCards(transformedData);
-      } else {
-        showToast({
-          title: "Warning",
-          description: "No metrics data available",
-          variant: "default",
+        const response = await fetch(url, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
         });
-      }
-    } catch (error) {
-      console.error('Error fetching metrics:', error);
-      if (isForecast) {
-        setIsForecast(false);
-        showToast({
-          title: "Forecast Unavailable",
-          description: "Unable to load forecast data. Showing current data instead.",
-          variant: "destructive",
-        });
-        // Retry with current data
-        await fetchMetricCards();
-      } else {
+  
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(`Failed to fetch metrics: ${data.error || response.statusText}`);
+        }
+  
+        const transformedData = isForecasting ? transformForecastData(data) : transformCurrentData(data);
+        if (Object.keys(transformedData).length > 0) {
+          setMetricCards(transformedData);
+          // Update lastFetchRef with new parameters
+          lastFetchRef.current = {
+            scope: currentScope,
+            resolution: currentResolution,
+            isForecast: isForecasting,
+            wasActiveMetric: lastFetchRef.current.wasActiveMetric
+          };
+        } else {
+          showToast({
+            title: "Warning",
+            description: "No metrics data available",
+            variant: "default",
+          });
+        }
+        if (!isForecasting) {
+          setLastFetchDate(today);
+        }
+      } catch (error) {
+        console.error('Error fetching metrics:', error);
         showToast({
           title: "Error",
           description: "Failed to load metrics data",
           variant: "destructive",
         });
+      } finally {
+        setLoading(false);
       }
-    } finally {
-      setLoading(false);
-    }
-  }, [forecastableMetrics, router, showToast, scope, resolution, isForecast, selectedMetric, metricIds]);
+    },
+    [metricIds, router, showToast, setMetricCards, lastFetchDate, metricCards]
+  );
 
-  useEffect(() => {
-    const fetchMetricIds = async () => {
-      const token = localStorage.getItem('authToken');
-      if (!token) return;
+  const initializeMetricData = useCallback(async () => {
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      router.push('/login');
+      return;
+    }
   
+    // Only fetch if we don't have the data in context
+    if (forecastableMetrics.length === 0 || Object.keys(metricIds).length === 0) {
       try {
         const response = await fetch(`${API_URL}/metrics/available_forecast_metrics`, {
           headers: {
             'Authorization': `Bearer ${token}`,
-            'Accept': 'application/json',
-          }
+          },
         });
   
-        if (response.ok) {
-          const data = await response.json();
+        if (!response.ok) {
+          console.warn('Failed to fetch forecast metrics, using defaults');
+          setForecastableMetrics(DEFAULT_FORECAST_METRICS);
+          return;
+        }
+  
+        const data = await response.json();
+        if (data?.metrics) {
+          const availableMetrics = new Set<string>();
           const ids: Record<string, number> = {};
           
-          // Flatten all metrics from all categories
           Object.values(data.metrics).forEach((categoryMetrics: any) => {
-            categoryMetrics.forEach((metric: any) => {
-              ids[metric.name.toLowerCase()] = metric.id;
-            });
+            if (Array.isArray(categoryMetrics)) {
+              categoryMetrics.forEach(metric => {
+                if (metric?.name) {
+                  availableMetrics.add(metric.name.toLowerCase());
+                  ids[metric.name.toLowerCase()] = metric.id;
+                }
+              });
+            }
           });
-          
-          setMetricIds(ids);
+  
+          if (availableMetrics.size > 0) {
+            setForecastableMetrics(Array.from(availableMetrics));
+            setMetricIds(ids);
+          }
         }
       } catch (error) {
-        console.error('Error fetching metric IDs:', error);
+        console.warn('Error fetching forecast metrics, using defaults:', error);
+        setForecastableMetrics(DEFAULT_FORECAST_METRICS);
       }
-    };
+    }
+  }, [router, forecastableMetrics.length, metricIds, setForecastableMetrics, setMetricIds]);
   
-    fetchMetricIds();
-  }, []);
-
   useEffect(() => {
-    if (initializationRef.current) return; // Skip if already initialized
+    if (!isInitialized) return;
+    
+    // Only check cache if there's no parameter change
+    const today = format(new Date(), 'yyyy-MM-dd');
+    const lastFetch = lastFetchRef.current;
+    const paramsChanged = 
+      scope !== lastFetch.scope ||
+      resolution !== lastFetch.resolution;
+  
+    // Allow fetch if parameters changed or it's a forecast request
+    if (paramsChanged || isForecast) {
+      console.log('Parameters changed:', { scope, resolution, isForecast, selectedMetric });
+      handleFetchMetrics(scope, resolution, isForecast, selectedMetric);
+    }
+  }, [scope, resolution, isForecast, selectedMetric, isInitialized, handleFetchMetrics]);
+  
+  useEffect(() => {
+    if (initializationRef.current) return;
     
     const initialize = async () => {
       initializationRef.current = true;
       setLoading(true);
       try {
-        // Fetch both in parallel
+        const today = format(new Date(), 'yyyy-MM-dd');
+        
+        // Check if we already have data for today
+        if (lastFetchDate === today && Object.keys(metricCards).length > 0) {
+          setIsInitialized(true);
+          setLoading(false);
+          return;
+        }
+  
+        // Only fetch if we don't have today's data
         await Promise.all([
-          fetchForecastMetrics(),
-          fetchMetricCards()
+          initializeMetricData(),
+          handleFetchMetrics(scope, resolution, isForecast, selectedMetric)
         ]);
+        setLastFetchDate(today);
         setIsInitialized(true);
       } catch (error) {
         console.error('Initialization error:', error);
@@ -262,21 +351,18 @@ function MetricsPage() {
         setLoading(false);
       }
     };
-
+  
     initialize();
-  }, []); 
-  
-  useEffect(() => {
-    if (!initializationRef.current) return; // Skip if not initialized yet
-    if (isInitialized) {
-      fetchMetricCards();
+  }, []);
+
+  const handleMetricSelect = useCallback((metric: string) => {
+    if (selectedMetric === metric) {
+      setSelectedMetric(null);
+    } else {
+      setSelectedMetric(metric);
     }
-  }, [scope, resolution, isForecast, selectedMetric]);
-  
-  const handleMetricSelect = (metric: string) => {
-    setSelectedMetric(selectedMetric === metric ? null : metric);
     setIsForecast(false);
-  };
+  }, [selectedMetric]);
 
   if (loading) {
     return (

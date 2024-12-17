@@ -231,7 +231,30 @@ const MetricCard = ({
         console.log('Transformed forecast data:', transformedData);
         setData(transformedData);
       } else {
-        // ... rest of the metric data handling remains the same ...
+        const metricKey = title.toLowerCase().replace(/ /g, '_');
+        if (!result.metrics?.[metricKey]) {
+          throw new Error('No metric data available');
+        }
+      
+        const metricData = result.metrics[metricKey];
+        const transformedData: MetricData = {
+          percentage_change: metricData.change?.percentage ?? 0,
+          trend: (metricData.change?.percentage ?? 0) >= 0 ? 'up' : 'down',
+          start_date: metricData.trend_data?.[0]?.date ?? '',
+          end_date: metricData.trend_data?.[metricData.trend_data.length - 1]?.date ?? '',
+          start_amount: metricData.trend_data?.[0]?.value ?? 0,
+          end_amount: metricData.current_value ?? 0,
+          graph_data: (metricData.trend_data ?? []).map((point: any) => ({
+            date: point.date,
+            value: point.value,
+            trend: point.trend,
+            ma3: point.ma3,
+            ma7: point.ma7
+          }))
+        };
+      
+        console.log('Transformed metric data:', transformedData);
+        setData(transformedData);
       }
     } catch (error) {
       console.error('Error fetching metric data:', error);
