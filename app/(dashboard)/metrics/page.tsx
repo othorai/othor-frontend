@@ -7,10 +7,11 @@ import { useToast } from "@/hooks/use-toast";
 import { Star } from 'lucide-react';
 import MetricCard from '@/components/metrics/MetricCard';
 import type { MetricData } from '@/components/metrics/MetricCard';
-import { ChevronLeft } from 'lucide-react'; // Add this import
+import { ChevronLeft } from 'lucide-react'; 
 import { API_URL } from '@/lib/config';
 import { useMetrics } from '@/context/MetricsContext';
 import { format } from 'date-fns';
+import { Card } from "@/components/ui/card";
 
 
 const currentScopeOptions = [
@@ -48,6 +49,7 @@ function MetricsPage() {
   const [isInitialized, setIsInitialized] = useState(false);
   const { toast: showToast } = useToast();
   const initializationRef = useRef(false);
+  const [forecastMetricsLoading, setForecastMetricsLoading] = useState(true);
   const {
     metricCards,
     setMetricCards,
@@ -77,7 +79,7 @@ function MetricsPage() {
   const transformCurrentData = (data: any): Record<string, MetricData> => {
     const transformed: Record<string, MetricData> = {};
     
-    if (data?.metrics) {
+    if (data?.metrics && Object.keys(data.metrics).length > 0) {
       Object.entries(data.metrics).forEach(([key, metric]: [string, any]) => {
         transformed[key] = {
           percentage_change: metric.change?.percentage ?? 0,
@@ -124,6 +126,7 @@ function MetricsPage() {
   };
 
   const fetchForecastMetrics = useCallback(async () => {
+    setForecastMetricsLoading(true);
     try {
       const token = localStorage.getItem('authToken');
       if (!token) {
@@ -139,6 +142,7 @@ function MetricsPage() {
   
       if (!response.ok) {
         console.warn('Failed to fetch forecast metrics, using defaults');
+        setForecastableMetrics(DEFAULT_FORECAST_METRICS);
         return;
       }
   
@@ -162,6 +166,9 @@ function MetricsPage() {
       }
     } catch (error) {
       console.warn('Error fetching forecast metrics, using defaults:', error);
+      setForecastableMetrics(DEFAULT_FORECAST_METRICS);
+    } finally {
+      setForecastMetricsLoading(false);
     }
   }, [router]);
 
@@ -220,24 +227,35 @@ function MetricsPage() {
         if (!response.ok) {
           throw new Error(`Failed to fetch metrics: ${data.error || response.statusText}`);
         }
+        
+        const hasNoDataSources = 
+          !data.metrics || 
+          Object.keys(data.metrics).length === 0 || 
+          data.metadata?.source_count === 0;
   
-        const transformedData = isForecasting ? transformForecastData(data) : transformCurrentData(data);
-        if (Object.keys(transformedData).length > 0) {
-          setMetricCards(transformedData);
-          // Update lastFetchRef with new parameters
-          lastFetchRef.current = {
-            scope: currentScope,
-            resolution: currentResolution,
-            isForecast: isForecasting,
-            wasActiveMetric: lastFetchRef.current.wasActiveMetric
-          };
+        if (hasNoDataSources) {
+          setMetricCards({});
         } else {
-          showToast({
-            title: "Warning",
-            description: "No metrics data available",
-            variant: "default",
-          });
+          const transformedData = isForecasting ? transformForecastData(data) : transformCurrentData(data);
+          if (Object.keys(transformedData).length > 0) {
+            setMetricCards(transformedData);
+          } else {
+            showToast({
+              title: "Warning",
+              description: "No metrics data available",
+              variant: "default",
+            });
+          }
         }
+  
+        // Update lastFetchRef with new parameters
+        lastFetchRef.current = {
+          scope: currentScope,
+          resolution: currentResolution,
+          isForecast: isForecasting,
+          wasActiveMetric: lastFetchRef.current.wasActiveMetric
+        };
+  
         if (!isForecasting) {
           setLastFetchDate(today);
         }
@@ -335,6 +353,7 @@ function MetricsPage() {
         if (lastFetchDate === today && Object.keys(metricCards).length > 0) {
           setIsInitialized(true);
           setLoading(false);
+          setForecastMetricsLoading(false); // Add this line
           return;
         }
   
@@ -343,10 +362,13 @@ function MetricsPage() {
           initializeMetricData(),
           handleFetchMetrics(scope, resolution, isForecast, selectedMetric)
         ]);
+        
         setLastFetchDate(today);
         setIsInitialized(true);
+        setForecastMetricsLoading(false); 
       } catch (error) {
         console.error('Initialization error:', error);
+        setForecastMetricsLoading(false); 
       } finally {
         setLoading(false);
       }
@@ -364,13 +386,42 @@ function MetricsPage() {
     setIsForecast(false);
   }, [selectedMetric]);
 
-  if (loading) {
+  if (loading || forecastMetricsLoading) {
     return (
       <div className="p-8 flex justify-center items-center min-h-screen">
         <div className="space-y-4 text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-          <p className="text-muted-foreground">Loading metrics...</p>
+          <p className="text-muted-foreground">
+            {loading && forecastMetricsLoading 
+              ? "Loading metrics..."
+              : loading 
+                ? "Loading metrics data..." 
+                : "Loading forecast metrics..."}
+          </p>
         </div>
+      </div>
+    );
+  }
+
+  const hasNoDataSources = !metricCards || Object.keys(metricCards).length === 0;
+
+  if (hasNoDataSources) {
+    return (
+      <div className="p-8 flex items-center justify-center min-h-[calc(100vh-200px)]">
+        <Card className="w-full max-w-2xl p-8 text-center">
+          <h2 className="text-3xl font-bold text-gray-900 mb-4">
+            No data sources connected
+          </h2>
+          <p className="text-lg text-gray-600 mb-6">
+            Please connect a data source to view metrics
+          </p>
+          <button 
+            onClick={() => router.push('/settings')} 
+            className="px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors"
+          >
+            Connect Data Source
+          </button>
+        </Card>
       </div>
     );
   }

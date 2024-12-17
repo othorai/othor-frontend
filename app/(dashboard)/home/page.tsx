@@ -24,19 +24,16 @@ interface Article {
 export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [feedData, setFeedData] = useState<Article[]>([]);
   const [username, setUsername] = useState('');
   const router = useRouter();
   const { toast } = useToast();
   const { narratives, setNarratives, lastFetchDate, setLastFetchDate } = useNarratives();
-
 
   // Format today's date
   const today = new Date();
   const formattedDate = format(today, "dd MMM yyyy EEEE");
 
   useEffect(() => {
-    // Get username from localStorage
     const email = localStorage.getItem('savedEmail');
     if (email) {
       const name = email.split('@')[0];
@@ -83,9 +80,13 @@ export default function HomePage() {
       }
 
       if (data.articles) {
-        // Check if we got the "No Articles Available" message
-        if (data.articles.length === 1 && data.articles[0].title === "No Articles Available") {
-          setNarratives([]);
+        // Update the check for no data sources
+        const hasNoDataSources = 
+          data.articles.length === 0 || 
+          (data.articles.length === 1 && data.articles[0].title === "No Articles Available");
+
+        if (hasNoDataSources) {
+          setNarratives([]); // Set empty array to trigger no data sources view
         } else {
           setNarratives(data.articles);
         }
@@ -192,8 +193,8 @@ export default function HomePage() {
 
   // Check if we have the "No Articles Available" response
   const isNoDataSourcesConnected = 
-    feedData.length === 1 && 
-    feedData[0].title === "No Articles Available";
+    narratives.length === 0 || 
+    (narratives.length === 1 && narratives[0].title === "No Articles Available");
 
   if (isNoDataSourcesConnected) {
     return (
