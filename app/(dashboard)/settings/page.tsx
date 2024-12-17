@@ -37,13 +37,12 @@ import { Button } from "@/components/ui/button";
 
 import HelpAndSupport from '@/components/settings/help-support/help-support-list';
 
-const { clearStorage } = useChat();
-
 export default function SettingsPage() {
   // State
   const [activeSidebarItem, setActiveSidebarItem] = useState('Workspaces');
   const [isCreateOrgModalOpen, setIsCreateOrgModalOpen] = useState(false);
   const [newOrgName, setNewOrgName] = useState('');
+  const { clearStorage } = useChat();
 
   const wrappedHandleEditOrganization = async (orgId: string, name: string) => {
     await handleEditOrganization(orgId, name);
