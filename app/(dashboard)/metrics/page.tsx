@@ -1,7 +1,7 @@
 // app/(dashboard)/metrics/page.tsx
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback , useMemo, useRef} from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from "@/hooks/use-toast";
 import { Star } from 'lucide-react';
@@ -42,7 +42,11 @@ function MetricsPage() {
   const [isForecast, setIsForecast] = useState(false);
   const [forecastableMetrics, setForecastableMetrics] = useState<string[]>(DEFAULT_FORECAST_METRICS);
   const router = useRouter();
-  const { toast } = useToast();
+  const [isInitialized, setIsInitialized] = useState(false);
+  const { toast: showToast } = useToast();
+  const initializationRef = useRef(false);
+  const [metricIds, setMetricIds] = useState<Record<string, number>>({});
+
 
   const transformCurrentData = (data: any): Record<string, MetricData> => {
     const transformed: Record<string, MetricData> = {};
@@ -100,19 +104,18 @@ function MetricsPage() {
         router.push('/login');
         return;
       }
-
-      // Changed endpoint to match the API structure
+  
       const response = await fetch(`${API_URL}/metrics/available_forecast_metrics`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
       });
-
+  
       if (!response.ok) {
         console.warn('Failed to fetch forecast metrics, using defaults');
         return;
       }
-
+  
       const data = await response.json();
       if (data?.metrics) {
         const availableMetrics = new Set<string>();
@@ -126,7 +129,7 @@ function MetricsPage() {
             });
           }
         });
-
+  
         if (availableMetrics.size > 0) {
           setForecastableMetrics(Array.from(availableMetrics));
         }
@@ -136,6 +139,14 @@ function MetricsPage() {
     }
   }, [router]);
 
+  const scaleParams = useMemo(() => ({
+    scope,
+    resolution,
+    isForecast,
+    selectedMetric,
+  }), [scope, resolution, isForecast, selectedMetric]);
+
+  
   const fetchMetricCards = useCallback(async () => {
     try {
       setLoading(true);
@@ -144,73 +155,124 @@ function MetricsPage() {
         router.push('/login');
         return;
       }
-
-      // Updated endpoint path to match API structure
-      const endpoint = isForecast && forecastableMetrics.includes(selectedMetric?.toLowerCase() ?? '') 
-      ? `${API_URL}/metrics/metric_forecast`
-      : `${API_URL}/metrics/metric_cards`;
-
-    console.log('Fetching from endpoint:', endpoint); // Debug log
-
-    const response = await fetch(
-      `${endpoint}?scope=${scope}&resolution=${resolution}`,
-      {
+  
+      let url = '';
+      if (isForecast && selectedMetric && metricIds[selectedMetric.toLowerCase()]) {
+        url = `${API_URL}/metrics/metric_forecast?metric_id=${metricIds[selectedMetric.toLowerCase()]}&forecast_duration=${scope}&resolution=${resolution}`;
+      } else {
+        url = `${API_URL}/metrics/metric_cards?scope=${scope}&resolution=${resolution}`;
+      }
+  
+      const response = await fetch(url, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
+      });
+  
+      const data = await response.json();
+  
+      if (!response.ok) {
+        throw new Error(`Failed to fetch metrics: ${data.error || response.statusText}`);
       }
-    );
-
-    const data = await response.json();
-    console.log('Raw API response:', data); // Debug log
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch metrics: ${data.error || response.statusText}`);
+  
+      const transformedData = isForecast ? transformForecastData(data) : transformCurrentData(data);
+      
+      if (Object.keys(transformedData).length > 0) {
+        setMetricCards(transformedData);
+      } else {
+        showToast({
+          title: "Warning",
+          description: "No metrics data available",
+          variant: "default",
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching metrics:', error);
+      if (isForecast) {
+        setIsForecast(false);
+        showToast({
+          title: "Forecast Unavailable",
+          description: "Unable to load forecast data. Showing current data instead.",
+          variant: "destructive",
+        });
+        // Retry with current data
+        await fetchMetricCards();
+      } else {
+        showToast({
+          title: "Error",
+          description: "Failed to load metrics data",
+          variant: "destructive",
+        });
+      }
+    } finally {
+      setLoading(false);
     }
+  }, [forecastableMetrics, router, showToast, scope, resolution, isForecast, selectedMetric, metricIds]);
 
-    const transformedData = isForecast ? transformForecastData(data) : transformCurrentData(data);
-    console.log('Transformed data:', transformedData); // Debug log
+  useEffect(() => {
+    const fetchMetricIds = async () => {
+      const token = localStorage.getItem('authToken');
+      if (!token) return;
+  
+      try {
+        const response = await fetch(`${API_URL}/metrics/available_forecast_metrics`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json',
+          }
+        });
+  
+        if (response.ok) {
+          const data = await response.json();
+          const ids: Record<string, number> = {};
+          
+          // Flatten all metrics from all categories
+          Object.values(data.metrics).forEach((categoryMetrics: any) => {
+            categoryMetrics.forEach((metric: any) => {
+              ids[metric.name.toLowerCase()] = metric.id;
+            });
+          });
+          
+          setMetricIds(ids);
+        }
+      } catch (error) {
+        console.error('Error fetching metric IDs:', error);
+      }
+    };
+  
+    fetchMetricIds();
+  }, []);
+
+  useEffect(() => {
+    if (initializationRef.current) return; // Skip if already initialized
     
-    if (Object.keys(transformedData).length > 0) {
-      setMetricCards(transformedData);
-    } else {
-      console.warn('No metrics data after transformation'); // Debug log
-      toast({
-        title: "Warning",
-        description: "No metrics data available",
-        variant: "default",
-      });
-    }
-  } catch (error) {
-    console.error('Error fetching metrics:', error);
-    if (isForecast) {
-      setIsForecast(false);
-      toast({
-        title: "Forecast Unavailable",
-        description: "Unable to load forecast data. Showing current data instead.",
-        variant: "destructive",
-      });
+    const initialize = async () => {
+      initializationRef.current = true;
+      setLoading(true);
+      try {
+        // Fetch both in parallel
+        await Promise.all([
+          fetchForecastMetrics(),
+          fetchMetricCards()
+        ]);
+        setIsInitialized(true);
+      } catch (error) {
+        console.error('Initialization error:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initialize();
+  }, []); 
+  
+  useEffect(() => {
+    if (!initializationRef.current) return; // Skip if not initialized yet
+    if (isInitialized) {
       fetchMetricCards();
-    } else {
-      toast({
-        title: "Error",
-        description: "Failed to load metrics data",
-        variant: "destructive",
-      });
     }
-  } finally {
-    setLoading(false);
-  }
-}, [scope, resolution, isForecast, selectedMetric, router, toast, forecastableMetrics]);
-
-  useEffect(() => {
-    fetchForecastMetrics();
-  }, [fetchForecastMetrics]);
-
-  useEffect(() => {
-    fetchMetricCards();
-  }, [fetchMetricCards]);
-
+  }, [scope, resolution, isForecast, selectedMetric]);
+  
   const handleMetricSelect = (metric: string) => {
     setSelectedMetric(selectedMetric === metric ? null : metric);
     setIsForecast(false);
@@ -299,6 +361,7 @@ function MetricsPage() {
                   onResolutionChange={setResolution}
                   scopeOptions={isForecast ? forecastScopeOptions : currentScopeOptions}
                   resolutionOptions={resolutionOptions}
+                  metricId={metricIds[key.toLowerCase()]}
                 />
               </div>
             );
