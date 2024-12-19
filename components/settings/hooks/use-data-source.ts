@@ -124,7 +124,10 @@ export function useDataSource(): UseDataSourceReturn {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(sourceData),
+          body: JSON.stringify({
+            ...sourceData,
+            source_type: sourceData.source_type
+          }),
         }
       );
 
