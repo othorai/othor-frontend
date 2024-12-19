@@ -1,9 +1,12 @@
-import { FC, useState } from 'react';
+// components/settings/team/add-member-modal.tsx
+
+import { FC, useState, useEffect } from 'react';
 import { Plus } from 'lucide-react';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AddMemberModal } from './add-member-modal';
+import { useTeam } from '@/components/settings/hooks/use-team';
 
 interface Organization {
   id: string;
@@ -35,18 +38,27 @@ export const TeamList: FC<TeamListProps> = ({
   isLoading,
   onAddMember,
   onRemoveMember,
-  onUpdateMemberRole,
+  onUpdateMemberRole
 }) => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isAddingMember, setIsAddingMember] = useState(false);
 
-  const handleAddMember = async (emailData: { email: string }) => {
+  const handleAddMemberSubmit = async (emailData: { email: string }) => {
     setIsAddingMember(true);
     try {
       await onAddMember(emailData);
+      setIsAddModalOpen(false);
     } finally {
       setIsAddingMember(false);
     }
+  };
+
+  const handleRemoveMemberClick = async (userId: string) => {
+    await onRemoveMember(userId);
+  };
+
+  const handleUpdateRole = async (userId: string, isAdmin: boolean) => {
+    await onUpdateMemberRole(userId, isAdmin);
   };
 
   return (
@@ -96,7 +108,7 @@ export const TeamList: FC<TeamListProps> = ({
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => onUpdateMemberRole(member.id, !member.is_admin)}
+                          onClick={() => handleUpdateRole(member.id, !member.is_admin)}
                         >
                           {member.is_admin ? 'Remove Admin' : 'Make Admin'}
                         </Button>
@@ -105,7 +117,7 @@ export const TeamList: FC<TeamListProps> = ({
                             variant="ghost" 
                             size="sm" 
                             className="text-red-600 hover:text-red-700"
-                            onClick={() => onRemoveMember(member.id)}
+                            onClick={() => handleRemoveMemberClick(member.id)}
                           >
                             Remove
                           </Button>
@@ -127,7 +139,7 @@ export const TeamList: FC<TeamListProps> = ({
       <AddMemberModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
-        onSubmit={handleAddMember}
+        onSubmit={handleAddMemberSubmit}
         isLoading={isAddingMember}
       />
     </Card>

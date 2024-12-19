@@ -1,3 +1,4 @@
+// components/settings/hooks
 import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from "@/hooks/use-toast";
@@ -31,7 +32,7 @@ export function useTeam(): UseTeamReturn {
       setTeamMembers([]);
       return;
     }
-
+  
     try {
       setIsLoading(true);
       const token = localStorage.getItem('authToken');
@@ -39,20 +40,22 @@ export function useTeam(): UseTeamReturn {
         router.push('/login');
         return;
       }
-
+  
       const response = await fetch(`${API_URL}/api/v1/organizations/${organizationId}/users`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
       });
-
+  
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || `Failed to fetch team members: ${response.status}`);
       }
-
+  
       const data = await response.json();
+      console.log('API Response:', data); // Add this log
       setTeamMembers(data);
+      console.log('Team Members State:', teamMembers); // Add this log
     } catch (error) {
       console.error('Error fetching team members:', error);
       setTeamMembers([]);
@@ -80,21 +83,34 @@ export function useTeam(): UseTeamReturn {
         });
         return false;
       }
-
+  
       const response = await fetch(`${API_URL}/authorization/find-by-email`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(emailData.email)
+        body: JSON.stringify({ email: emailData.email })
       });
-
+  
+      const errorData = await response.json();
+  
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to add user to organization');
+        // Check specifically for the "User not found" error
+        if (errorData.detail === "User not found") {
+          // Create the message as a string instead of JSX
+          toast({
+            variant: "destructive",
+            title: "User Not Found",
+            description: `No account exists for ${emailData.email}. Please ask them to create an account at our signup page.`
+          });
+          return false;
+        }
+  
+        // Handle other types of errors
+        throw new Error(errorData.detail || 'Failed to add user to organization');
       }
-
+  
       await fetchTeamMembers(organizationId);
       
       toast({

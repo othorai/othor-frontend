@@ -242,7 +242,7 @@ export default function SettingsPage() {
                   }
                 />
               )}
-              {activeSidebarItem === 'Team' && (
+              {activeSidebarItem === 'Team Members' && (
                 <TeamList
                   teamMembers={teamMembers}
                   activeOrganization={activeOrganization}
@@ -254,7 +254,6 @@ export default function SettingsPage() {
                   }}
                   onRemoveMember={wrappedHandleRemoveMember}
                   onUpdateMemberRole={wrappedHandleUpdateMemberRole}
-        
                 />
               )}
 
