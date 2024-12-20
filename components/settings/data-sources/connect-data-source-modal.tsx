@@ -89,6 +89,14 @@ export function ConnectDataSourceModal({
           database: formData.database,
           table_name: formData.table_name
         };
+      case 'mssql':
+        return {
+          host: formData.host,
+          username: formData.username,
+          password: formData.password,
+          database: formData.database,
+          table_name: formData.table_name
+        };
       default:
         return {};
     }
@@ -126,6 +134,9 @@ export function ConnectDataSourceModal({
         if (sourceType === 'postgresql') {
           return formData.database && formData.table_name;
         }
+        if (sourceType === 'mssql') {
+          return formData.database && formData.table_name;
+        }
         return formData.database && formData.schema && formData.table_name;
       default:
         return false;
@@ -147,6 +158,7 @@ export function ConnectDataSourceModal({
                   <SelectItem value="snowflake">Snowflake</SelectItem>
                   <SelectItem value="mysql">MySQL</SelectItem>
                   <SelectItem value="postgresql">PostgreSQL</SelectItem>
+                  <SelectItem value="mssql">Microsoft SQL Server</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -162,26 +174,30 @@ export function ConnectDataSourceModal({
         );
 
       case 2:
-        return sourceType === 'snowflake' ? (
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Account Identifier</Label>
-              <Input
-                placeholder="Your Snowflake account identifier"
-                value={formData.account}
-                onChange={(e) => setFormData({ ...formData, account: e.target.value })}
-              />
+        if (sourceType === 'snowflake') {
+          return (
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>Account Identifier</Label>
+                <Input
+                  placeholder="Your Snowflake account identifier"
+                  value={formData.account}
+                  onChange={(e) => setFormData({ ...formData, account: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Warehouse</Label>
+                <Input
+                  placeholder="Warehouse name"
+                  value={formData.warehouse}
+                  onChange={(e) => setFormData({ ...formData, warehouse: e.target.value })}
+                />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label>Warehouse</Label>
-              <Input
-                placeholder="Warehouse name"
-                value={formData.warehouse}
-                onChange={(e) => setFormData({ ...formData, warehouse: e.target.value })}
-              />
-            </div>
-          </div>
-        ) : (
+          );
+        }
+
+        return (
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label>Host</Label>
@@ -239,7 +255,7 @@ export function ConnectDataSourceModal({
                 onChange={(e) => setFormData({ ...formData, database: e.target.value })}
               />
             </div>
-            {sourceType !== 'postgresql' && (
+            {sourceType !== 'postgresql' && sourceType !== 'mssql' && (
               <div className="space-y-2">
                 <Label>Schema</Label>
                 <Input
