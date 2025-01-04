@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from 'react';
 import { OrganizationSwitcher } from "@/components/organization-switcher";
+import { useOrganization } from '@/context/OrganizationContext';
 
 interface WelcomeHeaderProps {
   organizationName?: string;
@@ -11,6 +12,10 @@ interface WelcomeHeaderProps {
 export function WelcomeHeader({ organizationName }: WelcomeHeaderProps) {
   const [currentDate, setCurrentDate] = useState('');
   const [username, setUsername] = useState('');
+  const { activeOrganization } = useOrganization();
+
+  // Get the organization name either from props or context
+  const displayOrgName = organizationName || activeOrganization?.name;
 
   useEffect(() => {
     // Set current date
@@ -41,10 +46,10 @@ export function WelcomeHeader({ organizationName }: WelcomeHeaderProps) {
   }, []);
 
   return (
-    <div className="flex justify-between items-center px-6  py-2">
+    <div className="flex justify-between items-center px-6 py-2">
       <div>
         <h1 className="text-2xl font-semibold text-gray-900">
-          Welcome{username ? ` ${username}` : ''}{organizationName ? ` to ${organizationName}` : ''}
+          Welcome{username ? ` ${username}` : ''}{displayOrgName ? ` to ${displayOrgName}` : ''}
         </h1>
         <p className="text-sm text-gray-500 mt-1">Today is {currentDate}</p>
       </div>

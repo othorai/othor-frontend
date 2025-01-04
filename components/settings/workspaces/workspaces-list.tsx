@@ -1,5 +1,5 @@
 // components/settings/workspaces/workspaces-list.tsx
-import { FC } from 'react';
+import { FC, useEffect, useState } from 'react';
 import { Plus } from 'lucide-react';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,9 +15,9 @@ interface WorkspacesListProps {
   organizations: Organization[];
   activeOrganization: Organization | null;
   onCreateWorkspace: () => void;
-  onSwitchWorkspace: (orgId: string) => Promise<void>; // Updated to Promise<void>
+  onSwitchWorkspace: (orgId: string) => Promise<void>;
   onEditWorkspace: (orgId: string, name: string) => Promise<void>;
-  onDeleteWorkspace: (orgId: string) => void;
+  onDeleteWorkspace: (orgId: string) => Promise<void>;
 }
 
 export const WorkspacesList: FC<WorkspacesListProps> = ({
@@ -28,13 +28,15 @@ export const WorkspacesList: FC<WorkspacesListProps> = ({
   onEditWorkspace,
   onDeleteWorkspace
 }) => {
-  const handleSwitch = async (orgId: string) => {
-    try {
-      await onSwitchWorkspace(orgId);
-    } catch (error) {
-      console.error('Error switching workspace:', error);
-    }
-  };
+  // Get the current organization ID directly from localStorage
+  const [currentOrgId, setCurrentOrgId] = useState(() => 
+    localStorage.getItem('currentOrgId')
+  );
+
+  // Update currentOrgId whenever localStorage changes
+  useEffect(() => {
+    setCurrentOrgId(localStorage.getItem('currentOrgId'));
+  }, [activeOrganization?.id]); // Update when activeOrganization changes
 
   return (
     <Card className="p-6">
@@ -51,8 +53,8 @@ export const WorkspacesList: FC<WorkspacesListProps> = ({
             <WorkspaceCard
               key={org.id}
               organization={org}
-              isActive={activeOrganization?.id === org.id}
-              onSwitch={handleSwitch}
+              isActive={org.id === currentOrgId}
+              onSwitch={onSwitchWorkspace}
               onEdit={onEditWorkspace}
               onDelete={onDeleteWorkspace}
             />

@@ -62,6 +62,10 @@ export default function SettingsPage() {
     await handleEditOrganization(orgId, name);
     // Void the boolean return value
   };
+
+  const handleWorkspaceRefresh = async () => {
+    await initializeData();
+  };
   
   // Hooks
   const router = useRouter();
@@ -78,6 +82,7 @@ export default function SettingsPage() {
     handleSwitchOrganization,
     handleEditOrganization,
     handleDeleteOrganization,
+    setActiveOrganization
   } = useOrganization();
 
   const {
@@ -126,18 +131,18 @@ export default function SettingsPage() {
     try {
       const success = await handleSwitchOrganization(orgId);
       if (success) {
-        // Refetch the organization data to update the settings page state
+        // Update localStorage immediately
+        const newOrg = organizations.find(org => org.id === orgId);
+        if (newOrg) {
+          localStorage.setItem('currentOrgId', newOrg.id);
+          localStorage.setItem('currentOrgName', newOrg.name);
+        }
+        
+        // Update the data
         await initializeData();
-        await fetchDataSources(orgId);
-        await fetchTeamMembers(orgId);
         
-        // Give a small delay to ensure state updates are complete
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
-        toast({
-          title: "Success",
-          description: "Organization switched successfully"
-        });
+        // Reload the page
+        window.location.reload();
       }
     } catch (error) {
       console.error('Error switching workspace:', error);
@@ -149,7 +154,25 @@ export default function SettingsPage() {
     }
   };
 
+
   // Effects
+
+  useEffect(() => {
+    // Sync active organization with localStorage on mount and when activeOrganization changes
+    const currentOrgId = localStorage.getItem('currentOrgId');
+    if (currentOrgId && organizations.length > 0) {
+      const currentOrg = organizations.find(org => org.id === currentOrgId);
+      if (currentOrg && currentOrg.id !== activeOrganization?.id) {
+        // Force synchronization with the organization from localStorage
+        const currentOrgName = localStorage.getItem('currentOrgName');
+        if (currentOrgName) {
+          setActiveOrganization(currentOrg);
+        }
+      }
+    }
+  }, [organizations, activeOrganization, setActiveOrganization]);
+
+
   useEffect(() => {
     console.log('Initializing settings data');
     initializeData();
@@ -223,6 +246,7 @@ export default function SettingsPage() {
                   onSwitchWorkspace={handleWorkspaceSwitch}
                   onEditWorkspace={handleEditWorkspaceWrapper}
                   onDeleteWorkspace={handleDeleteOrganization}
+                  onRefresh={handleWorkspaceRefresh}
                 />
               )}
               {activeSidebarItem === 'Liked Narratives' && (
