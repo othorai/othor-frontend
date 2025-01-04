@@ -29,7 +29,14 @@ interface UseOrganizationReturn {
 
 export function useOrganization(): UseOrganizationReturn {
   const [organizations, setOrganizations] = useState<Organization[]>([]);
-  const [activeOrganization, setActiveOrganization] = useState<Organization | null>(null);
+  const [activeOrganization, setActiveOrganization] = useState<Organization | null>(() => {
+    // Initialize with localStorage values
+    const currentOrgId = localStorage.getItem('currentOrgId');
+    const currentOrgName = localStorage.getItem('currentOrgName');
+    return currentOrgId && currentOrgName 
+      ? { id: currentOrgId, name: currentOrgName }
+      : null;
+  });
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   
@@ -75,7 +82,6 @@ export function useOrganization(): UseOrganizationReturn {
     if (!token) return;
 
     try {
-      console.log('Fetching organizations data');
       const response = await fetch(`${API_URL}/api/v1/organizations/`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -85,11 +91,20 @@ export function useOrganization(): UseOrganizationReturn {
       if (!response.ok) throw new Error('Failed to fetch workspaces');
       
       const data = await response.json();
-      console.log('Organizations data fetched successfully');
       setOrganizations(data);
-      
-      if (!activeOrganization && data.length > 0) {
+
+      // After getting organizations, ensure active organization is in sync
+      const currentOrgId = localStorage.getItem('currentOrgId');
+      if (currentOrgId) {
+        const currentOrg = data.find((org: Organization) => org.id === currentOrgId);
+        if (currentOrg) {
+          setActiveOrganization(currentOrg);
+        }
+      } else if (data.length > 0) {
+        // If no current org in localStorage, set first org as active
         setActiveOrganization(data[0]);
+        localStorage.setItem('currentOrgId', data[0].id);
+        localStorage.setItem('currentOrgName', data[0].name);
       }
     } catch (error) {
       console.error('Error fetching workspaces:', error);
@@ -99,24 +114,73 @@ export function useOrganization(): UseOrganizationReturn {
         description: "Failed to fetch workspaces"
       });
     }
-  }, [toast, activeOrganization]);
+  }, []);
+
+  const handleSwitchOrganization = async (orgId: string): Promise<boolean> => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(`${API_URL}/authorization/switch-organization/${orgId}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) throw new Error('Failed to switch workspace');
+
+      const data = await response.json();
+      const newOrg = organizations.find(org => org.id === orgId);
+      
+      if (!newOrg) {
+        throw new Error('Organization not found');
+      }
+
+      // Clear previous data
+      localStorage.removeItem('currentOrgId');
+      localStorage.removeItem('currentOrgName');
+
+      // Update everything in order
+      localStorage.setItem('authToken', data.access_token);
+      localStorage.setItem('currentOrgId', orgId);
+      localStorage.setItem('currentOrgName', newOrg.name);
+      
+      // Update active organization
+      setActiveOrganization(newOrg);
+
+      // Dispatch the event
+      window.dispatchEvent(createOrganizationChangeEvent(newOrg));
+
+      toast({
+        title: "Success",
+        description: "Workspace switched successfully"
+      });
+
+      return true;
+    } catch (error) {
+      console.error('Error switching workspace:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to switch workspace"
+      });
+      return false;
+    }
+  };
 
   useEffect(() => {
     const handleOrgChange = (event: CustomEvent<Organization>) => {
       const newOrg = event.detail;
       setActiveOrganization(newOrg);
-      // Refetch data for the new organization
-      fetchUserOrganizations();
+      // Don't call fetchUserOrganizations here as it will create an infinite loop
     };
   
-    // Add event listener
     window.addEventListener('organizationChanged', handleOrgChange as EventListener);
     
-    // Cleanup function
     return () => {
       window.removeEventListener('organizationChanged', handleOrgChange as EventListener);
     };
-  }, [fetchUserOrganizations]);
+  }, []); 
 
   const initializeData = useCallback(async () => {
     setIsLoading(true);
@@ -171,88 +235,6 @@ export function useOrganization(): UseOrganizationReturn {
     }
   };
 
-  const handleSwitchOrganization = async (orgId: string): Promise<boolean> => {
-    try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch(`${API_URL}/authorization/switch-organization/${orgId}`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) throw new Error('Failed to switch workspace');
-
-      const data = await response.json();
-      const newOrg = organizations.find(org => org.id === orgId);
-      
-      if (!newOrg) {
-        throw new Error('Organization not found');
-      }
-
-      // Update everything in order
-      localStorage.setItem('authToken', data.access_token);
-      localStorage.setItem('currentOrgId', orgId);
-      localStorage.setItem('currentOrgName', newOrg.name);
-      
-      // Update active organization
-      setActiveOrganization(newOrg);
-      
-      // Dispatch the event
-      window.dispatchEvent(createOrganizationChangeEvent(newOrg));
-
-      toast({
-        title: "Success",
-        description: "Workspace switched successfully"
-      });
-
-      return true;
-    } catch (error) {
-      console.error('Error switching workspace:', error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to switch workspace"
-      });
-      return false;
-    }
-  };
-
-  const handleEditOrganization = async (orgId: string, name: string): Promise<boolean> => {
-    try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch(`${API_URL}/api/v1/organizations/${orgId}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ name }),
-      });
-
-      if (!response.ok) throw new Error('Failed to edit workspace');
-
-      const updatedOrg = await response.json();
-      setOrganizations(prev => prev.map(org => 
-        org.id === orgId ? { ...org, ...updatedOrg } : org
-      ));
-      toast({
-        title: "Success",
-        description: "Workspace updated successfully"
-      });
-      return true;
-    } catch (error) {
-      console.error('Error editing workspace:', error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to edit workspace"
-      });
-      return false;
-    }
-  };
-
   const handleDeleteOrganization = async (orgId: string): Promise<boolean> => {
     try {
       const token = localStorage.getItem('authToken');
@@ -262,13 +244,18 @@ export function useOrganization(): UseOrganizationReturn {
           'Authorization': `Bearer ${token}`,
         },
       });
-
+  
       if (!response.ok) throw new Error('Failed to delete workspace');
-
-      setOrganizations(prev => prev.filter(org => org.id !== orgId));
-      if (activeOrganization?.id === orgId) {
-        setActiveOrganization(organizations[0] || null);
-      }
+  
+      setOrganizations((prev: Organization[]) => {
+        const updatedOrgs = prev.filter((org: Organization) => org.id !== orgId);
+        // If we're deleting the active organization, update it
+        if (activeOrganization?.id === orgId) {
+          setActiveOrganization(updatedOrgs[0] || null);
+        }
+        return updatedOrgs;
+      });
+  
       toast({
         title: "Success",
         description: "Workspace deleted successfully"
@@ -280,6 +267,48 @@ export function useOrganization(): UseOrganizationReturn {
         variant: "destructive",
         title: "Error",
         description: "Failed to delete workspace"
+      });
+      return false;
+    }
+  };
+  
+  const handleEditOrganization = async (orgId: string, name: string): Promise<boolean> => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(`${API_URL}/api/v1/organizations/${orgId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name }),
+      });
+  
+      if (!response.ok) throw new Error('Failed to edit workspace');
+  
+      const updatedOrg = await response.json();
+      setOrganizations((prev: Organization[]) => 
+        prev.map((org: Organization) => 
+          org.id === orgId ? { ...org, ...updatedOrg } : org
+        )
+      );
+      
+      // If the edited organization is the active one, update its state too
+      if (activeOrganization?.id === orgId) {
+        setActiveOrganization({ ...activeOrganization, ...updatedOrg });
+      }
+  
+      toast({
+        title: "Success",
+        description: "Workspace updated successfully"
+      });
+      return true;
+    } catch (error) {
+      console.error('Error editing workspace:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to edit workspace"
       });
       return false;
     }
