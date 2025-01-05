@@ -17,6 +17,7 @@ export interface MetricData {
   end_date: string;
   start_amount: number;
   end_amount: number;
+  category?: string;
   graph_data: Array<{
     date: string;
     value: number;

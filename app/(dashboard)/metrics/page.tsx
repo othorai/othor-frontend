@@ -88,6 +88,7 @@ function MetricsPage() {
           end_date: data.metadata?.end_date ?? new Date().toISOString(),
           start_amount: metric.previous_value ?? 0,
           end_amount: metric.current_value ?? 0,
+          category: metric.category ?? 'Uncategorized',
           graph_data: (metric.trend_data ?? []).map((point: any) => ({
             date: point.date ?? new Date().toISOString(),
             value: typeof point.value === 'number' ? point.value : 0,
@@ -101,7 +102,7 @@ function MetricsPage() {
     
     return transformed;
   };
-
+  
   const transformForecastData = (data: any): Record<string, MetricData> => {
     const transformed: Record<string, MetricData> = {};
     
@@ -114,6 +115,7 @@ function MetricsPage() {
           end_date: forecast.end_date || new Date().toISOString(),
           start_amount: forecast.start_value || 0,
           end_amount: forecast.end_value || 0,
+          category: forecast.category ?? 'Uncategorized',
           graph_data: (forecast.points || []).map((point: any) => ({
             date: point.date || new Date().toISOString(),
             value: point.value || 0
@@ -386,6 +388,36 @@ function MetricsPage() {
     setIsForecast(false);
   }, [selectedMetric]);
 
+  const groupedMetrics = useMemo(() => {
+    const grouped: Record<string, Array<{ key: string; data: MetricData }>> = {};
+    
+    // First group the metrics by category
+    Object.entries(metricCards || {}).forEach(([key, data]) => {
+      const category = data.category || 'Uncategorized';
+      
+      if (!grouped[category]) {
+        grouped[category] = [];
+      }
+      
+      grouped[category].push({ key, data });
+    });
+    
+    // Sort metrics within each category by end_amount (descending)
+    Object.keys(grouped).forEach(category => {
+      grouped[category].sort((a, b) => b.data.end_amount - a.data.end_amount);
+    });
+    
+    // Sort categories by number of metrics (descending)
+    const sortedGrouped: Record<string, Array<{ key: string; data: MetricData }>> = {};
+    Object.entries(grouped)
+      .sort(([, metricsA], [, metricsB]) => metricsB.length - metricsA.length)
+      .forEach(([category, metrics]) => {
+        sortedGrouped[category] = metrics;
+      });
+    
+    return sortedGrouped;
+  }, [metricCards]);
+
   if (loading || forecastMetricsLoading) {
     return (
       <div className="p-8 flex justify-center items-center min-h-screen">
@@ -433,7 +465,7 @@ function MetricsPage() {
           {selectedMetric ? (
             <div className="flex items-center gap-4">
               <button 
-                onClick={() => handleMetricSelect(selectedMetric)} // This will toggle it off
+                onClick={() => handleMetricSelect(selectedMetric)}
                 className="flex items-center gap-2 text-sm hover:text-primary transition-colors"
               >
                 <ChevronLeft className="h-4 w-4" />
@@ -468,41 +500,49 @@ function MetricsPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 auto-rows-fr">
-          {Object.entries(metricCards || {}).map(([key, data]) => {
-            const isSelected = selectedMetric === key;
-            
-            return (
-              <div 
-                key={key}
-                className={`${
-                  isSelected 
-                    ? 'col-span-full row-start-1'
-                    : selectedMetric 
-                      ? 'col-span-1' 
-                      : 'col-span-1'
-                }`}
-              >
-                <MetricCard
-                  title={key.split('_').map(word => 
-                    word.charAt(0).toUpperCase() + word.slice(1)
-                  ).join(' ')}
-                  data={data}
-                  onExpand={() => handleMetricSelect(key)}
-                  isExpanded={isSelected}
-                  forecastEnabled={forecastableMetrics.includes(key.toLowerCase())}
-                  isForecast={isForecast}
-                  scope={scope}
-                  resolution={resolution}
-                  onScopeChange={setScope}
-                  onResolutionChange={setResolution}
-                  scopeOptions={isForecast ? forecastScopeOptions : currentScopeOptions}
-                  resolutionOptions={resolutionOptions}
-                  metricId={metricIds[key.toLowerCase()]}
-                />
+        {/* Render metrics grouped by category */}
+        <div className="space-y-8">
+          {Object.entries(groupedMetrics).map(([category, metrics]) => (
+            <div key={category} className="space-y-4">
+              <h2 className="text-xl font-semibold text-primary">{category}</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {metrics.map(({ key, data }) => {
+                  const isSelected = selectedMetric === key;
+                  
+                  return (
+                    <div 
+                      key={key}
+                      className={`${
+                        isSelected 
+                          ? 'col-span-full row-start-1'
+                          : selectedMetric 
+                            ? 'col-span-1' 
+                            : 'col-span-1'
+                      }`}
+                    >
+                      <MetricCard
+                        title={key.split('_').map(word => 
+                          word.charAt(0).toUpperCase() + word.slice(1)
+                        ).join(' ')}
+                        data={data}
+                        onExpand={() => handleMetricSelect(key)}
+                        isExpanded={isSelected}
+                        forecastEnabled={forecastableMetrics.includes(key.toLowerCase())}
+                        isForecast={isForecast}
+                        scope={scope}
+                        resolution={resolution}
+                        onScopeChange={setScope}
+                        onResolutionChange={setResolution}
+                        scopeOptions={isForecast ? forecastScopeOptions : currentScopeOptions}
+                        resolutionOptions={resolutionOptions}
+                        metricId={metricIds[key.toLowerCase()]}
+                      />
+                    </div>
+                  );
+                })}
               </div>
-            );
-          })}
+            </div>
+          ))}
         </div>
       </div>
     </div>
