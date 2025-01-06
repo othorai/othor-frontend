@@ -53,6 +53,7 @@ export function useDataSource(): UseDataSourceReturn {
           headers: {
             'Authorization': `Bearer ${token}`,
           },
+          cache: 'no-store'
         }
       );
 
@@ -61,7 +62,17 @@ export function useDataSource(): UseDataSourceReturn {
       }
 
       const data = await response.json();
-      setDataSources(data.data_sources || []);
+      
+      // Deduplicate data sources
+      const uniqueSources = new Map();
+      (data.data_sources || []).forEach((source: DataSource) => {
+        const key = `${source.connection_details?.database}_${source.connection_details?.host}_${source.table_name}`;
+        if (!uniqueSources.has(key)) {
+          uniqueSources.set(key, source);
+        }
+      });
+      
+      setDataSources(Array.from(uniqueSources.values()));
     } catch (error) {
       console.error('Error fetching data sources:', error);
       toast({
@@ -91,8 +102,9 @@ export function useDataSource(): UseDataSourceReturn {
 
       if (!response.ok) throw new Error('Failed to connect data source');
 
-      const newSource = await response.json();
-      setDataSources(prev => [...prev, newSource]);
+      await response.json();
+      await fetchDataSources(organizationId);
+      
       toast({
         title: "Success",
         description: "Data source connected successfully"
@@ -133,10 +145,9 @@ export function useDataSource(): UseDataSourceReturn {
 
       if (!response.ok) throw new Error('Failed to update data source');
 
-      const updatedSource = await response.json();
-      setDataSources(prev => prev.map(source => 
-        source.id === sourceId ? { ...source, ...updatedSource } : source
-      ));
+      await response.json();
+      await fetchDataSources(organizationId);
+      
       toast({
         title: "Success",
         description: "Data source updated successfully"
@@ -170,8 +181,13 @@ export function useDataSource(): UseDataSourceReturn {
       );
 
       if (!response.ok) throw new Error('Failed to delete data source');
-
-      setDataSources(prev => prev.filter(source => source.id !== sourceId));
+      
+      // Wait for deletion to complete
+      await response.json();
+      
+      // Refetch data sources to ensure sync
+      await fetchDataSources(organizationId);
+      
       toast({
         title: "Success",
         description: "Data source deleted successfully"

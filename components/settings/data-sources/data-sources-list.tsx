@@ -1,4 +1,3 @@
-// components/settings/data-sources/data-source-list.tsx
 import { FC, useState, useCallback, useEffect } from 'react';
 import { Plus } from 'lucide-react';
 import { Card } from "@/components/ui/card";
@@ -22,19 +21,27 @@ export const DataSourcesList: FC<DataSourcesListProps> = ({
   onEditSource,
   onDeleteSource,
 }) => {
-  // State management
   const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
-  const [currentSources, setCurrentSources] = useState<DataSource[]>([]);
   const [editingSource, setEditingSource] = useState<DataSource | null>(null);
+  const [processingSourceId, setProcessingSourceId] = useState<string | null>(null);
+  const [localDataSources, setLocalDataSources] = useState<DataSource[]>([]);
+  const [deletingSourceIds, setDeletingSourceIds] = useState<Set<string>>(new Set());
   const { toast } = useToast();
 
-  // Sync local state with props
   useEffect(() => {
-    setCurrentSources(dataSources);
+    const uniqueSources = new Map<string, DataSource>();
+    
+    dataSources.forEach(source => {
+      const key = `${source.connection_details?.database}_${source.connection_details?.host}_${source.table_name}`;
+      if (!uniqueSources.has(key)) {
+        uniqueSources.set(key, source);
+      }
+    });
+
+    setLocalDataSources(Array.from(uniqueSources.values()));
   }, [dataSources]);
 
-  // Connect source handler
   const handleConnectSource = useCallback(async (sourceData: any) => {
     setIsConnecting(true);
     try {
@@ -45,7 +52,6 @@ export const DataSourcesList: FC<DataSourcesListProps> = ({
         description: "Data source connected successfully"
       });
     } catch (error) {
-      console.error('Error connecting source:', error);
       toast({
         variant: "destructive",
         title: "Error",
@@ -56,79 +62,83 @@ export const DataSourcesList: FC<DataSourcesListProps> = ({
     }
   }, [onConnectSource, toast]);
 
-  // Edit source handler
   const handleEditSource = useCallback(async (sourceId: string, sourceData: Partial<DataSource>) => {
+    if (processingSourceId) return;
+    setProcessingSourceId(sourceId);
+    
     try {
       const success = await onEditSource(sourceId, sourceData);
       if (success) {
         setEditingSource(null);
-        // Update local state with edited source
-        setCurrentSources(prev => 
-          prev.map(source => 
-            source.id === sourceId 
-              ? { ...source, ...sourceData }
-              : source
-          )
-        );
+        toast({
+          title: "Success",
+          description: "Data source updated successfully"
+        });
       }
     } catch (error) {
-      console.error('Error editing source:', error);
       toast({
         variant: "destructive",
         title: "Error",
         description: "Failed to edit data source"
       });
+    } finally {
+      setProcessingSourceId(null);
     }
-  }, [onEditSource, toast]);
+  }, [onEditSource, processingSourceId, toast]);
 
-  // Delete source handler
   const handleDeleteSource = useCallback(async (sourceId: string) => {
+    if (deletingSourceIds.has(sourceId)) return;
+    
+    setDeletingSourceIds(prev => new Set([...prev, sourceId]));
+    setProcessingSourceId(sourceId);
+
     try {
       await onDeleteSource(sourceId);
-      // Update local state after successful deletion
-      setCurrentSources(prev => prev.filter(source => source.id !== sourceId));
+      setLocalDataSources(prev => prev.filter(source => source.id !== sourceId));
       toast({
         title: "Success",
         description: "Data source deleted successfully"
       });
     } catch (error) {
-      console.error('Error deleting source:', error);
       toast({
         variant: "destructive",
         title: "Error",
         description: "Failed to delete data source"
       });
+    } finally {
+      setProcessingSourceId(null);
+      setDeletingSourceIds(prev => {
+        const next = new Set(prev);
+        next.delete(sourceId);
+        return next;
+      });
     }
-  }, [onDeleteSource, toast]);
+  }, [onDeleteSource, deletingSourceIds, toast]);
 
-  // Modal handlers
-  const handleOpenModal = useCallback(() => {
-    setIsConnectModalOpen(true);
-  }, []);
-
-  const handleCloseModal = useCallback(() => {
-    setIsConnectModalOpen(false);
-  }, []);
-
-  // Render data sources
-  const renderDataSources = () => {
-    if (!currentSources.length) {
-      return (
-        <div className="text-center py-8 text-muted-foreground">
-          No data sources connected. Connect your first data source to get started.
+  if (!localDataSources.length) {
+    return (
+      <Card className="p-6">
+        <div className="space-y-6">
+          <div className="flex justify-between items-center">
+            <h3 className="text-lg font-medium">Data Sources</h3>
+            <Button onClick={() => setIsConnectModalOpen(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              Connect Data Source (0/5)
+            </Button>
+          </div>
+          <div className="text-center py-8 text-muted-foreground">
+            No data sources connected. Connect your first data source to get started.
+          </div>
         </div>
-      );
-    }
-
-    return currentSources.map((source) => (
-      <DataSourceCard
-        key={source.id}
-        dataSource={source}
-        onEdit={() => setEditingSource(source)}
-        onDelete={() => handleDeleteSource(source.id)}
-      />
-    ));
-  };
+        <ConnectDataSourceModal
+          isOpen={isConnectModalOpen}
+          onClose={() => setIsConnectModalOpen(false)}
+          onSubmit={handleConnectSource}
+          isLoading={isConnecting}
+        />
+      </Card>
+    );
+  }
 
   return (
     <Card className="p-6">
@@ -136,36 +146,43 @@ export const DataSourcesList: FC<DataSourcesListProps> = ({
         <div className="flex justify-between items-center">
           <h3 className="text-lg font-medium">Data Sources</h3>
           <Button
-            onClick={handleOpenModal}
-            disabled={currentSources.length >= 5}
+            onClick={() => setIsConnectModalOpen(true)}
+            disabled={localDataSources.length >= 5}
           >
             <Plus className="w-4 h-4 mr-2" />
-            Connect Data Source ({currentSources.length}/5)
+            Connect Data Source ({localDataSources.length}/5)
           </Button>
         </div>
         
         <div className="space-y-4">
-          {renderDataSources()}
+          {localDataSources.map((source) => (
+            <DataSourceCard
+              key={source.id}
+              dataSource={source}
+              onEdit={() => setEditingSource(source)}
+              onDelete={() => handleDeleteSource(source.id)}
+              isProcessing={processingSourceId === source.id || deletingSourceIds.has(source.id)}
+              isDeleting={deletingSourceIds.has(source.id)}
+            />
+          ))}
         </div>
       </div>
 
-      {/* Connect Modal */}
       <ConnectDataSourceModal
         isOpen={isConnectModalOpen}
-        onClose={handleCloseModal}
+        onClose={() => setIsConnectModalOpen(false)}
         onSubmit={handleConnectSource}
         isLoading={isConnecting}
       />
 
-      {/* Edit Modal */}
       {editingSource && (
-      <EditDataSourceModal
-        isOpen={!!editingSource}
-        onClose={() => setEditingSource(null)}
-        onSubmit={handleEditSource}
-        currentSource={editingSource}
-      />
-    )}
+        <EditDataSourceModal
+          isOpen={true}
+          onClose={() => setEditingSource(null)}
+          onSubmit={handleEditSource}
+          currentSource={editingSource}
+        />
+      )}
     </Card>
   );
 };
