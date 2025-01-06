@@ -44,8 +44,8 @@ export function MetricsProvider({ children }: { children: React.ReactNode }) {
   // Initialize state with empty values
   const [metricCards, setMetricCards] = useState<Record<string, MetricData>>({});
   const [selectedMetric, setSelectedMetric] = useState<string | null>(null);
-  const [scope, setScope] = useState('this_year');
-  const [resolution, setResolution] = useState('monthly');
+  const [scope, setScope] = useState('past_30_days');
+  const [resolution, setResolution] = useState('daily');
   const [isForecast, setIsForecast] = useState(false);
   const [forecastableMetrics, setForecastableMetrics] = useState<string[]>([]);
   const [metricIds, setMetricIds] = useState<Record<string, number>>({});

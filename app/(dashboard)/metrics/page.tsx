@@ -2,6 +2,7 @@
 'use client';
 
 import { useState, useEffect, useCallback , useMemo, useRef} from 'react';
+import { Dispatch, SetStateAction } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from "@/hooks/use-toast";
 import { Star } from 'lucide-react';
@@ -15,17 +16,17 @@ import { Card } from "@/components/ui/card";
 
 
 const currentScopeOptions = [
-  { label: 'This Week', value: 'this_week' },
-  { label: 'This Month', value: 'this_month' },
-  { label: 'This Quarter', value: 'this_quarter' },
-  { label: 'This Year', value: 'this_year' },
+  { label: 'Past 7 Days', value: 'past_7_days' },
+  { label: 'Past 30 Days', value: 'past_30_days' },
+  { label: 'Past 4 Months', value: 'past_4_months' },
+  { label: 'Past 12 Months', value: 'past_12_months' },
 ];
 
 const forecastScopeOptions = [
-  { label: 'Next Week', value: 'next_week' },
-  { label: 'Next Month', value: 'next_month' },
-  { label: 'Next Quarter', value: 'next_quarter' },
-  { label: 'Next Year', value: 'next_year' },
+  { label: 'Next 7 Days', value: 'next_7_days' },
+  { label: 'Next 30 Days', value: 'next_30_days' },
+  { label: 'Next 4 Months', value: 'next_4_months' },
+  { label: 'Next 12 Months', value: 'next_12_months' },
 ];
 
 const resolutionOptions = [
@@ -106,26 +107,58 @@ function MetricsPage() {
   const transformForecastData = (data: any): Record<string, MetricData> => {
     const transformed: Record<string, MetricData> = {};
     
-    if (data?.forecasts) {
+    if (data?.forecast_points?.length > 0) {
+      // For single metric forecast response
+      transformed[data.metric_name] = {
+        percentage_change: ((data.forecast_points[data.forecast_points.length - 1].value - 
+                           data.forecast_points[0].value) / data.forecast_points[0].value * 100) || 0,
+        trend: 'up',  // Will be determined by percentage change
+        start_date: data.metadata?.start_date || data.forecast_points[0].date,
+        end_date: data.metadata?.end_date || data.forecast_points[data.forecast_points.length - 1].date,
+        start_amount: data.forecast_points[0].value,
+        end_amount: data.forecast_points[data.forecast_points.length - 1].value,
+        category: data.metadata?.category || metricCards[data.metric_name]?.category || 'Uncategorized',
+        graph_data: data.forecast_points.map((point: any) => ({
+          date: point.date,
+          value: point.value,
+          confidence_interval: point.confidence_interval
+        }))
+      };
+  
+      // Update trend based on percentage change
+      transformed[data.metric_name].trend = 
+        transformed[data.metric_name].percentage_change >= 0 ? 'up' : 'down';
+    }
+    else if (data?.forecasts) {
+      // For multiple metrics forecast response
       Object.entries(data.forecasts).forEach(([key, forecast]: [string, any]) => {
-        transformed[key] = {
-          percentage_change: forecast.change_percentage || 0,
-          trend: (forecast.change_percentage || 0) >= 0 ? 'up' : 'down',
-          start_date: forecast.start_date || new Date().toISOString(),
-          end_date: forecast.end_date || new Date().toISOString(),
-          start_amount: forecast.start_value || 0,
-          end_amount: forecast.end_value || 0,
-          category: forecast.category ?? 'Uncategorized',
-          graph_data: (forecast.points || []).map((point: any) => ({
-            date: point.date || new Date().toISOString(),
-            value: point.value || 0
-          }))
-        };
+        const forecastPoints = forecast.forecast_points || [];
+        if (forecastPoints.length > 0) {
+          const firstPoint = forecastPoints[0];
+          const lastPoint = forecastPoints[forecastPoints.length - 1];
+          const percentageChange = ((lastPoint.value - firstPoint.value) / firstPoint.value * 100) || 0;
+  
+          transformed[key] = {
+            percentage_change: percentageChange,
+            trend: percentageChange >= 0 ? 'up' : 'down',
+            start_date: forecast.metadata?.start_date || firstPoint.date,
+            end_date: forecast.metadata?.end_date || lastPoint.date,
+            start_amount: firstPoint.value,
+            end_amount: lastPoint.value,
+            category: forecast.metadata?.category || metricCards[key]?.category || 'Uncategorized',
+            graph_data: forecastPoints.map((point: any) => ({
+              date: point.date,
+              value: point.value,
+              confidence_interval: point.confidence_interval
+            }))
+          };
+        }
       });
     }
     
     return transformed;
   };
+  
 
   const fetchForecastMetrics = useCallback(async () => {
     setForecastMetricsLoading(true);
@@ -191,19 +224,14 @@ function MetricsPage() {
       try {
         setLoading(true);
         const token = localStorage.getItem('authToken');
+        const today = format(new Date(), 'yyyy-MM-dd');
+  
         if (!token) {
           router.push('/login');
           return;
         }
   
-        // Only check cache if no parameters changed and it's not a forecast
-        const today = format(new Date(), 'yyyy-MM-dd');
-        const lastFetch = lastFetchRef.current;
-        const paramsChanged = 
-          currentScope !== lastFetch.scope ||
-          currentResolution !== lastFetch.resolution;
-  
-        if (!isForecasting && !paramsChanged && lastFetchDate === today && Object.keys(metricCards).length > 0) {
+        if (isForecasting && !currentMetric) {
           setLoading(false);
           return;
         }
@@ -213,6 +241,11 @@ function MetricsPage() {
           url = `${API_URL}/metrics/metric_forecast?metric_id=${
             metricIds[currentMetric.toLowerCase()]
           }&forecast_duration=${currentScope}&resolution=${currentResolution}`;
+  
+          const currentCategory = metricCards[currentMetric]?.category;
+          if (currentCategory) {
+            url += `&category=${encodeURIComponent(currentCategory)}`;
+          }
         } else {
           url = `${API_URL}/metrics/metric_cards?scope=${currentScope}&resolution=${currentResolution}`;
         }
@@ -229,28 +262,35 @@ function MetricsPage() {
         if (!response.ok) {
           throw new Error(`Failed to fetch metrics: ${data.error || response.statusText}`);
         }
-        
-        const hasNoDataSources = 
-          !data.metrics || 
-          Object.keys(data.metrics).length === 0 || 
-          data.metadata?.source_count === 0;
   
-        if (hasNoDataSources) {
-          setMetricCards({});
+        if (isForecasting && currentMetric) {
+          data.metric_name = currentMetric;
+          data.metadata = {
+            ...data.metadata,
+            category: metricCards[currentMetric]?.category || 'Uncategorized'
+          };
+          
+          const transformedData = transformForecastData(data);
+          
+          // Create new state object directly
+          const newState: Record<string, MetricData> = {
+            ...metricCards,
+            [currentMetric]: {
+              ...(metricCards[currentMetric] || {}),
+              ...transformedData[currentMetric],
+              category: metricCards[currentMetric]?.category || 
+                       transformedData[currentMetric]?.category || 
+                       'Uncategorized'
+            }
+          };
+          
+          // Set the new state directly
+          setMetricCards(newState);
         } else {
-          const transformedData = isForecasting ? transformForecastData(data) : transformCurrentData(data);
-          if (Object.keys(transformedData).length > 0) {
-            setMetricCards(transformedData);
-          } else {
-            showToast({
-              title: "Warning",
-              description: "No metrics data available",
-              variant: "default",
-            });
-          }
+          const transformedData = transformCurrentData(data);
+          setMetricCards(transformedData);
         }
   
-        // Update lastFetchRef with new parameters
         lastFetchRef.current = {
           scope: currentScope,
           resolution: currentResolution,
@@ -328,19 +368,25 @@ function MetricsPage() {
   useEffect(() => {
     if (!isInitialized) return;
     
-    // Only check cache if there's no parameter change
-    const today = format(new Date(), 'yyyy-MM-dd');
     const lastFetch = lastFetchRef.current;
     const paramsChanged = 
       scope !== lastFetch.scope ||
       resolution !== lastFetch.resolution;
+    const forecastChanged = isForecast !== lastFetch.isForecast;
   
-    // Allow fetch if parameters changed or it's a forecast request
-    if (paramsChanged || isForecast) {
-      console.log('Parameters changed:', { scope, resolution, isForecast, selectedMetric });
+    // Only fetch if parameters changed OR switching between forecast and current
+    if (paramsChanged || (forecastChanged && selectedMetric)) {
+      console.log('Fetching metrics due to:', { 
+        paramsChanged, 
+        forecastChanged, 
+        scope, 
+        resolution, 
+        isForecast, 
+        selectedMetric 
+      });
       handleFetchMetrics(scope, resolution, isForecast, selectedMetric);
     }
-  }, [scope, resolution, isForecast, selectedMetric, isInitialized, handleFetchMetrics]);
+  }, [scope, resolution, selectedMetric, isInitialized, handleFetchMetrics]); 
   
   useEffect(() => {
     if (initializationRef.current) return;
