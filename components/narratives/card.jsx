@@ -1,3 +1,4 @@
+//components/narratives/card.tsx
 import React, { useState, useRef } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { NarrativeChart } from './charts';
@@ -44,24 +45,51 @@ export function NarrativeCard({
   };
 
   const formatTimePeriod = (timePeriod) => {
-    const match = timePeriod?.match(/(daily|weekly)\s*\((.*?)\)/i);
-    if (!match) return timePeriod;
-    
-    const [, type, period] = match;
-    
-    if (type.toLowerCase() === 'daily') {
-      const [day, month, year] = period.split('-');
-      const date = new Date(year, month - 1, day);
-      return `Daily Report - ${date.getDate()} ${date.toLocaleString('default', { month: 'short' })} ${year}`;
+    if (!timePeriod) return '';
+  
+    // Handle daily and weekly formats
+    const dailyWeeklyMatch = timePeriod?.match(/(daily|weekly)\s*\((.*?)\)/i);
+    if (dailyWeeklyMatch) {
+      const [, type, period] = dailyWeeklyMatch;
+      
+      // Daily format: "27-12-2024" -> "Daily Report - 27 Dec 2024"
+      if (type.toLowerCase() === 'daily') {
+        const [day, month, year] = period.split('-');
+        const date = new Date(year, month - 1, day);
+        return `Daily Report - ${date.getDate()} ${date.toLocaleString('default', { month: 'short' })} ${year}`;
+      }
+      
+      // Weekly format: "Week 2" -> "Weekly Report - Week 2 of Jan"
+      if (type.toLowerCase() === 'weekly') {
+        const currentDate = new Date();
+        const month = currentDate.toLocaleString('default', { month: 'short' });
+        const weekNumber = period.replace('Week ', '');
+        return `Weekly Report - Week ${weekNumber} of ${month}`;
+      }
     }
-    
-    if (type.toLowerCase() === 'weekly') {
-      const currentDate = new Date();
-      const month = currentDate.toLocaleString('default', { month: 'short' });
-      const weekNumber = period.replace('Week ', '');
-      return `Weekly Report - Week ${weekNumber} of ${month}`;
+  
+    // Handle monthly format: "monthly (December 2024 (16th-31))" -> "Monthly Report - December 2024 (1st to 15th)"
+    const monthlyMatch = timePeriod?.match(/monthly\s*\((.*?)\s*\((.*?)\)\)/i);
+    if (monthlyMatch) {
+      const [, monthYear, dateRange] = monthlyMatch;
+      const [startDay, endDay] = dateRange.split('-')
+        .map(day => day.replace(/(st|nd|rd|th)/, '').trim());
+      
+      // Add ordinal suffix to numbers
+      const addOrdinalSuffix = (num) => {
+        const n = parseInt(num);
+        if (n % 10 === 1 && n % 100 !== 11) return n + "st";
+        if (n % 10 === 2 && n % 100 !== 12) return n + "nd";
+        if (n % 10 === 3 && n % 100 !== 13) return n + "rd";
+        return n + "th";
+      };
+  
+      const formattedStart = addOrdinalSuffix(startDay);
+      const formattedEnd = addOrdinalSuffix(endDay);
+  
+      return `Monthly Report - ${monthYear} (${formattedStart} to ${formattedEnd})`;
     }
-    
+  
     return timePeriod;
   };
 
@@ -224,7 +252,7 @@ export function NarrativeCard({
     <Card className="w-full mb-6">
       <CardContent className="pt-6">
         {/* Time Period */}
-        <div className="mb-2 text-sm font-medium text-gray-500">
+        <div className="mb-2 text-base font-medium text-gray-500">
           {formatTimePeriod(timePeriod)}
         </div>
         
@@ -253,7 +281,7 @@ export function NarrativeCard({
               <button
                 key={metric}
                 onClick={() => setCurrentMetricIndex(index)}
-                className={`px-4 py-2 rounded-full text-sm whitespace-nowrap ${
+                className={`px-4 py-2 rounded-full text-base whitespace-nowrap ${
                   index === currentMetricIndex
                     ? 'bg-primary text-white'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -296,7 +324,7 @@ export function NarrativeCard({
               } hover:text-red-600`}
             >
               <Heart className={isLiked ? 'fill-current' : ''} size={18} />
-              <span className="text-sm">{isLiked ? 'Liked' : 'Like'}</span>
+              <span className="text-base">{isLiked ? 'Liked' : 'Like'}</span>
             </button>
             <button 
   onClick={handleDownload}
@@ -306,12 +334,12 @@ export function NarrativeCard({
   {downloading ? (
     <>
       <div className="animate-spin h-4 w-4 border-2 border-gray-500 border-t-transparent rounded-full" />
-      <span className="text-sm">Generating PDF...</span>
+      <span className="text-base">Generating PDF...</span>
     </>
   ) : (
     <>
       <Download size={18} />
-      <span className="text-sm">PDF</span>
+      <span className="text-base">PDF</span>
     </>
   )}
 </button>

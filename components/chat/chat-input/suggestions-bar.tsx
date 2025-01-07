@@ -25,7 +25,7 @@ export function SuggestionsBar({
             disabled={isLoading}
           >
             <Star size={16} />
-            <span className="text-sm">{suggestion}</span>
+            <span className="text-base">{suggestion}</span>
           </Button>
         ))}
       </div>

@@ -73,7 +73,7 @@ export function ChatHistory({
         Start New Chat
       </Button>
 
-      <div className="px-4 py-2 text-sm font-medium text-gray-500">
+      <div className="px-4 py-2 text-base font-medium text-gray-500">
         Chat History
       </div>
 
@@ -88,7 +88,7 @@ export function ChatHistory({
             ))}
           </div>
         ) : chatHistory.length === 0 ? (
-          <div className="p-4 text-sm text-gray-500">
+          <div className="p-4 text-base text-gray-500">
             No chat history yet
           </div>
         ) : (

@@ -416,31 +416,8 @@ const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
 
 
   return (
-    // Update the main container height class
-<div className="flex h-[calc(100vh-2rem)] md:h-[calc(100vh-5rem)]">
-<div className="md:hidden fixed top-4 left-4 z-[60]">
-  <Sheet>
-    <SheetContent side="left" className="w-80 p-0">
-      <SheetTitle className="sr-only">Chat History</SheetTitle>
-      <div className="h-full overflow-y-auto">
-        <ChatHistory
-          isLoading={isLoadingHistory}
-          chatHistory={transformedHistory}
-          selectedChatId={selectedChatId}
-          onNewChat={handleNewChat}
-          onChatSelect={(id) => {
-            handleChatSelect(id);
-            const closeButton = document.querySelector('[data-sheet-close]') as HTMLButtonElement;
-            closeButton?.click();
-          }}
-        />
-      </div>
-    </SheetContent>
-  </Sheet>
-</div>
-
-
-      {/* Desktop Chat History */}
+    <div className="flex h-[calc(100vh-2rem)] md:h-[calc(100vh-5rem)]">
+      {/* Chat History sidebar */}
       <div className="hidden md:block">
         <ChatHistory
           isLoading={isLoadingHistory}
@@ -450,26 +427,25 @@ const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
           onChatSelect={handleChatSelect}
         />
       </div>
-
-      {/* Rest of the layout remains same */}
+  
+      {/* Main chat area */}
       <div className="flex-1 flex flex-col min-h-0 relative">
         <MessageList messages={messages} showLogo={showLogo} />
-        <div className="absolute bottom-0 left-0 right-0 mb-20 md:mb-0">
         <ChatInputContainer
-  inputText={inputText}
-  setInputText={setInputText}
-  onSend={handleSendMessage}
-  onFileUpload={handleFileUpload}
-  isLoading={isLoading}
-  isUploading={uploadingFile}
-  suggestions={suggestions}
-  showSuggestions={showSuggestions}
-  documents={documents}
-  maxFileSize={MAX_FILE_SIZE}
-/>
-        </div>
+          inputText={inputText}
+          setInputText={setInputText}
+          onSend={handleSendMessage}
+          onFileUpload={handleFileUpload}
+          isLoading={isLoading}
+          isUploading={uploadingFile}
+          suggestions={suggestions}
+          showSuggestions={showSuggestions}
+          documents={documents}
+          maxFileSize={MAX_FILE_SIZE}
+        />
       </div>
-
+  
+      {/* Document sidebar */}
       <DocumentContainer
         documents={documents}
         showSidebar={showDocumentSidebar}

@@ -30,7 +30,7 @@ export function ChatInputContainer({
   maxFileSize
 }: ChatInputContainerProps) {
   return (
-    <div className="border-t bg-white w-full">
+    <div className="absolute bottom-0 left-0 right-0 border-t bg-white">
       <SuggestionsBar
         suggestions={suggestions}
         onSuggestionClick={(suggestion) => onSend(suggestion)}

@@ -18,7 +18,7 @@ export function MessageItem({ message }: MessageItemProps) {
             : 'bg-gray-100 text-gray-900 rounded-bl-none'
         )}
       >
-        <p className="text-sm whitespace-pre-wrap break-words">
+        <p className="text-base whitespace-pre-wrap break-words">
           {message.text}
         </p>
       </div>

@@ -31,7 +31,7 @@ export function ChatItem({
       <div className="flex items-start gap-3">
         <MessageSquare className="w-4 h-4 mt-1 flex-shrink-0" />
         <div className="flex-1 min-w-0">
-          <div className="text-sm font-medium truncate">
+          <div className="text-base font-medium truncate">
             {initial_message || 'Start New Chat'}
           </div>
           <div className="flex items-center gap-2 mt-1">

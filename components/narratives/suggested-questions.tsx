@@ -1,3 +1,4 @@
+//components/narratives/suggested-question.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -114,37 +115,78 @@ export function SuggestedQuestions({
   const questions = suggestedQuestions[articleId] || [];
   if (questions.length === 0) return null;
 
+  const formatAnswer = (text: string) => {
+    // Replace **text** patterns with proper heading elements
+    const formattedText = text.split('\n').map((paragraph, index) => {
+      // Check if it's a numbered heading (e.g., "1. **Heading**:")
+      const headingMatch = paragraph.match(/^(\d+\.\s+)\*\*(.*?)\*\*:/);
+      if (headingMatch) {
+        const [_, number, headingText] = headingMatch;
+        const remainingText = paragraph.replace(/^(\d+\.\s+)\*\*(.*?)\*\*:/, '');
+        return (
+          <div key={index} className="mt-4 first:mt-0">
+            <div className="flex gap-2">
+              <span className="text-gray-700">{number}</span>
+              <span className="font-semibold text-gray-900">{headingText}:</span>
+            </div>
+            <p className="mt-1 text-base text-gray-700 leading-relaxed">{remainingText}</p>
+          </div>
+        );
+      }
+      
+      // Regular paragraph
+      return paragraph.trim() && (
+        <p key={index} className="text-base text-gray-700 leading-relaxed mt-4 first:mt-0">
+          {paragraph}
+        </p>
+      );
+    });
+
+    return formattedText;
+  };
+
   return (
-    <div className="space-y-4">
+    <div className="mt-8 space-y-6 border-t pt-6">
+      {/* Section Title */}
+      <h4 className="font-medium text-gray-900">Suggested Questions</h4>
+      
       {/* Questions ScrollView */}
-      <div className="flex gap-2 overflow-x-auto py-2 hide-scrollbar">
+      <div className="flex gap-3 overflow-x-auto py-2 hide-scrollbar">
         {questions.map((question, index) => (
           <Button
             key={index}
             variant="outline"
+            size="sm"
             className={cn(
-              "whitespace-nowrap flex items-center gap-2",
-              selectedQuestion === question && "bg-primary text-primary-foreground"
+              "whitespace-nowrap flex items-center gap-2 px-4 py-2 rounded-full transition-colors",
+              selectedQuestion === question ? 
+                "bg-primary text-primary-foreground hover:bg-primary/90" : 
+                "hover:bg-gray-100"
             )}
             onClick={() => handleQuestionSelect(question)}
           >
             <StarIcon className="h-4 w-4" />
-            <span>{question}</span>
+            <span className="text-base">{question}</span>
           </Button>
         ))}
       </div>
 
       {/* Answer Display */}
       {selectedQuestion && (
-        <div className="rounded-lg bg-muted p-4">
+        <div className="rounded-lg border bg-card p-6 shadow-sm">
           {isLoading ? (
-            <div className="flex items-center justify-center py-4">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
             </div>
           ) : (
-            <div className="space-y-2">
-              <p className="text-sm font-medium">Answer:</p>
-              <p className="text-sm text-muted-foreground">{answer}</p>
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 text-gray-600">
+                <h5 className="font-medium">Answer</h5>
+                <div className="h-px flex-1 bg-gray-200" />
+              </div>
+              <div className="space-y-2">
+                {formatAnswer(answer)}
+              </div>
             </div>
           )}
         </div>
