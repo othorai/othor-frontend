@@ -51,6 +51,7 @@ function MetricsPage() {
   const { toast: showToast } = useToast();
   const initializationRef = useRef(false);
   const [forecastMetricsLoading, setForecastMetricsLoading] = useState(true);
+  
   const {
     metricCards,
     setMetricCards,
@@ -76,6 +77,10 @@ function MetricsPage() {
     isForecast: false,
     wasActiveMetric: false
   });
+
+  const normalizeName = (name: string): string => {
+    return name.toLowerCase().replace(/[\s-]/g, '_');
+  };
 
   const transformCurrentData = (data: any): Record<string, MetricData> => {
     const transformed: Record<string, MetricData> = {};
@@ -315,6 +320,34 @@ function MetricsPage() {
     [metricIds, router, showToast, setMetricCards, lastFetchDate, metricCards]
   );
 
+  interface MetricApiResponse {
+    metrics: {
+      [category: string]: Array<{
+        id: number;
+        name: string;
+        visualization_type: string;
+        business_context: string;
+        source: string;
+        confidence_score: number;
+        calculation: string;
+        aggregation_period: string;
+        data_points: number;
+        forecast_settings: {
+          min_historical_days: number;
+          recommended_forecast_period: string;
+          max_forecast_horizon: number;
+        };
+      }>;
+    };
+    categories: string[];
+    metadata: {
+      total_metrics_analyzed: number;
+      forecastable_metrics_count: number;
+      minimum_required_points: number;
+      timestamp: string;
+    };
+  }
+  
   const initializeMetricData = useCallback(async () => {
     const token = localStorage.getItem('authToken');
     if (!token) {
@@ -322,7 +355,6 @@ function MetricsPage() {
       return;
     }
   
-    // Only fetch if we don't have the data in context
     if (forecastableMetrics.length === 0 || Object.keys(metricIds).length === 0) {
       try {
         const response = await fetch(`${API_URL}/metrics/available_forecast_metrics`, {
@@ -337,24 +369,23 @@ function MetricsPage() {
           return;
         }
   
-        const data = await response.json();
+        const data = await response.json() as MetricApiResponse;
         if (data?.metrics) {
           const availableMetrics = new Set<string>();
           const ids: Record<string, number> = {};
           
-          Object.values(data.metrics).forEach((categoryMetrics: any) => {
-            if (Array.isArray(categoryMetrics)) {
-              categoryMetrics.forEach(metric => {
-                if (metric?.name) {
-                  availableMetrics.add(metric.name.toLowerCase());
-                  ids[metric.name.toLowerCase()] = metric.id;
-                }
-              });
-            }
+          Object.values(data.metrics).forEach((categoryMetrics) => {
+            categoryMetrics.forEach(metric => {
+              if (metric?.name) {
+                const normalizedName = normalizeName(metric.name);
+                availableMetrics.add(normalizedName);
+                ids[normalizedName] = metric.id;
+              }
+            });
           });
   
           if (availableMetrics.size > 0) {
-            setForecastableMetrics(Array.from(availableMetrics));
+            setForecastableMetrics(Array.from(availableMetrics) as string[]);
             setMetricIds(ids);
           }
         }
@@ -364,6 +395,7 @@ function MetricsPage() {
       }
     }
   }, [router, forecastableMetrics.length, metricIds, setForecastableMetrics, setMetricIds]);
+
   
   useEffect(() => {
     if (!isInitialized) return;
@@ -546,7 +578,6 @@ function MetricsPage() {
           </div>
         </div>
 
-        {/* Render metrics grouped by category */}
         <div className="space-y-8">
           {Object.entries(groupedMetrics).map(([category, metrics]) => (
             <div key={category} className="space-y-4">
@@ -554,6 +585,8 @@ function MetricsPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {metrics.map(({ key, data }) => {
                   const isSelected = selectedMetric === key;
+                  const normalizedKey = normalizeName(key);
+                  const isForcastable = forecastableMetrics.includes(normalizedKey);
                   
                   return (
                     <div 
@@ -573,7 +606,7 @@ function MetricsPage() {
                         data={data}
                         onExpand={() => handleMetricSelect(key)}
                         isExpanded={isSelected}
-                        forecastEnabled={forecastableMetrics.includes(key.toLowerCase())}
+                        forecastEnabled={isForcastable}
                         isForecast={isForecast}
                         scope={scope}
                         resolution={resolution}
@@ -581,7 +614,7 @@ function MetricsPage() {
                         onResolutionChange={setResolution}
                         scopeOptions={isForecast ? forecastScopeOptions : currentScopeOptions}
                         resolutionOptions={resolutionOptions}
-                        metricId={metricIds[key.toLowerCase()]}
+                        metricId={metricIds[normalizedKey]}
                       />
                     </div>
                   );
