@@ -31,10 +31,28 @@ const CustomXAxisTick = ({ x, y, payload }) => {
   const label = payload.value.includes('Current') ? 'Current' : 'Previous';
 
   let formattedDate = datePart;
-  if (datePart.match(/\d{2}-\d{2}-\d{4}/)) {
+
+  // Handle different date formats based on type
+  if (datePart.includes('Week')) {
+    // Weekly format: Show correct week numbers
+    const weekMatch = datePart.match(/Week (\d+)/);
+    if (weekMatch) {
+      const weekNum = parseInt(weekMatch[1]);
+      if (label === 'Current') {
+        formattedDate = `Week ${weekNum}`;
+      } else {
+        // Previous week should be weekNum - 1
+        formattedDate = `Week ${Math.max(1, weekNum - 1)}`; // Ensure we don't go below Week 1
+      }
+    }
+  } else if (datePart.match(/\d{2}-\d{2}-\d{4}/)) {
+    // Daily format
     const [day, month, year] = datePart.split('-');
     const date = new Date(year, month - 1, day);
     formattedDate = format(date, 'dd MMM yyyy');
+  } else if (datePart.includes('1st-15th') || datePart.includes('16th')) {
+    // Monthly format: Keep the date ranges as is
+    formattedDate = datePart;
   }
 
   return (
@@ -73,23 +91,57 @@ export function NarrativeChart({ data, title, timePeriod }) {
     isValidData,
     chartType
   } = useMemo(() => {
-    // Calculate percentage change
     const pctChange = data.change_percentage || ((data.current - data.previous) / data.previous) * 100;
     const isPos = pctChange >= 0;
     const isValid = !isNaN(pctChange) && isFinite(pctChange) && data.current !== undefined && data.previous !== undefined;
 
-    // Parse dates
-    const dateMatch = timePeriod?.match(/\((.*?)\)/);
-    const currentDate = dateMatch ? dateMatch[1] : 'Current';
+    let currentDate = 'Current';
     let previousDate = 'Previous';
 
-    if (currentDate.match(/\d{2}-\d{2}-\d{4}/)) {
-      const [day, month, year] = currentDate.split('-');
-      const date = new Date(year, month - 1, day);
-      const prevDate = new Date(date);
-      prevDate.setDate(prevDate.getDate() - 1);
-      previousDate = format(prevDate, 'dd-MM-yyyy');
+    // Parse dates based on report type
+    if (timePeriod) {
+      if (timePeriod.includes('weekly')) {
+        const weekMatch = timePeriod.match(/Week (\d+)/i);
+        if (weekMatch) {
+          const weekNum = parseInt(weekMatch[1]);
+          currentDate = `Week ${weekNum}`;
+          previousDate = `Week ${Math.max(1, weekNum - 1)}`; // Ensure we don't go below Week 1
+        }
+      } else if (timePeriod.includes('monthly')) {
+        const monthMatch = timePeriod.match(/(\w+)\s+(\d{4})\s*\((\d+)(?:st|nd|rd|th)-(\d+)(?:st|nd|rd|th)\)/i);
+        if (monthMatch) {
+          const [_, month, year, start, end] = monthMatch;
+          currentDate = `${start}-${end}`;
+          previousDate = '1st-15th';
+        }
+      } else {
+        // Daily format
+        const dailyMatch = timePeriod.match(/(\d{2})-(\d{2})-(\d{4})/);
+        if (dailyMatch) {
+          const [_, day, month, year] = dailyMatch;
+          // Create date object from components
+          const currentDateObj = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+          const prevDateObj = new Date(currentDateObj);
+          prevDateObj.setDate(prevDateObj.getDate() - 1);
+
+          // Format dates
+          try {
+            currentDate = format(currentDateObj, 'dd-MM-yyyy');
+            previousDate = format(prevDateObj, 'dd-MM-yyyy');
+          } catch (error) {
+            console.error('Date formatting error:', error);
+            currentDate = 'Current';
+            previousDate = 'Previous';
+          }
+        }
+      }
     }
+
+    // Create chart data
+    const chartData = [
+      { name: `Previous (${previousDate})`, value: data.previous },
+      { name: `Current (${currentDate})`, value: data.current }
+    ];
 
     // Determine chart type
     let type = 'line'; // default
@@ -106,12 +158,6 @@ export function NarrativeChart({ data, title, timePeriod }) {
     } else if (Math.abs(pctChange) > 20) {
       type = 'area';
     }
-
-    // Create chart data
-    const chartData = [
-      { name: `Previous (${previousDate})`, value: data.previous },
-      { name: `Current (${currentDate})`, value: data.current }
-    ];
 
     return {
       chartData,
@@ -133,14 +179,17 @@ export function NarrativeChart({ data, title, timePeriod }) {
   const chartProps = useMemo(() => ({
     width: "100%",
     height: 300,
-    margin: { top: 20, right: 30, left: 30, bottom: 40 } // Increased bottom margin
+    margin: { top: 20, right: 40, left: 40, bottom: 80 }
   }), []);
 
   const axisProps = useMemo(() => ({
     xAxis: {
       dataKey: "name",
-      height: 70, // Increased height for two lines
-      tick: CustomXAxisTick
+      height: 60,
+      tick: CustomXAxisTick,
+      interval: 0,
+      tickMargin: 30,
+      padding: { left: 0, right: 15 } // Add padding to prevent cropping
     },
     yAxis: {
       tickFormatter: formatValue,
