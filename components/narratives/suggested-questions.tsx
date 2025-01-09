@@ -1,6 +1,3 @@
-//components/narratives/suggested-question.tsx
-'use client';
-
 import { useState, useEffect } from 'react';
 import { StarIcon } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
@@ -16,6 +13,13 @@ interface SuggestedQuestionsProps {
   category: string;
   timePeriod: string;
   metrics: Record<string, any>;
+  narrativeContext?: {
+    description?: string;
+    trend?: string;
+    changePercentage?: number;
+    previousValue?: number;
+    currentValue?: number;
+  };
 }
 
 export function SuggestedQuestions({
@@ -24,7 +28,8 @@ export function SuggestedQuestions({
   content,
   category,
   timePeriod,
-  metrics
+  metrics,
+  narrativeContext
 }: SuggestedQuestionsProps) {
   const [selectedQuestion, setSelectedQuestion] = useState<string | null>(null);
   const [answer, setAnswer] = useState<string>('');
@@ -32,10 +37,8 @@ export function SuggestedQuestions({
   const { toast } = useToast();
   const { suggestedQuestions, setSuggestedQuestions } = useNarratives();
 
-  // Fetch questions when component mounts
   const fetchQuestions = async () => {
     try {
-      // Check if we already have cached questions for this article
       if (suggestedQuestions[articleId]) {
         return;
       }
@@ -50,8 +53,6 @@ export function SuggestedQuestions({
 
       if (!response.ok) throw new Error('Failed to fetch questions');
       const data = await response.json();
-      
-      // Cache the questions
       setSuggestedQuestions(articleId, data);
     } catch (error) {
       console.error('Error fetching questions:', error);
@@ -65,11 +66,26 @@ export function SuggestedQuestions({
     }
   };
 
-  // Handle question selection and get answer
   const handleQuestionSelect = async (question: string) => {
     try {
       setSelectedQuestion(question);
       setIsLoading(true);
+
+      // Enhanced context object including narrative information
+      const enhancedContext = {
+        title,
+        content,
+        category,
+        time_period: timePeriod,
+        metrics,
+        narrative: {
+          ...narrativeContext,
+          title,
+          description: content,
+          category,
+          timeRange: timePeriod
+        }
+      };
 
       const token = localStorage.getItem('authToken');
       const response = await fetch(`${API_URL}/chatbot/chat`, {
@@ -80,18 +96,11 @@ export function SuggestedQuestions({
         },
         body: JSON.stringify({
           message: question,
-          context: {
-            title,
-            content,
-            category,
-            time_period: timePeriod,
-            metrics
-          }
+          context: enhancedContext
         })
       });
 
       if (!response.ok) throw new Error('Failed to get answer');
-      
       const data = await response.json();
       setAnswer(data.response);
     } catch (error) {
@@ -106,19 +115,15 @@ export function SuggestedQuestions({
     }
   };
 
-  // Load questions when component mounts
   useEffect(() => {
     fetchQuestions();
   }, [articleId]);
 
-  // Get questions from cache or return empty array
   const questions = suggestedQuestions[articleId] || [];
   if (questions.length === 0) return null;
 
   const formatAnswer = (text: string) => {
-    // Replace **text** patterns with proper heading elements
-    const formattedText = text.split('\n').map((paragraph, index) => {
-      // Check if it's a numbered heading (e.g., "1. **Heading**:")
+    return text.split('\n').map((paragraph, index) => {
       const headingMatch = paragraph.match(/^(\d+\.\s+)\*\*(.*?)\*\*:/);
       if (headingMatch) {
         const [_, number, headingText] = headingMatch;
@@ -134,23 +139,18 @@ export function SuggestedQuestions({
         );
       }
       
-      // Regular paragraph
       return paragraph.trim() && (
         <p key={index} className="text-base text-gray-700 leading-relaxed mt-4 first:mt-0">
           {paragraph}
         </p>
       );
     });
-
-    return formattedText;
   };
 
   return (
     <div className="mt-8 space-y-6 border-t pt-6">
-      {/* Section Title */}
       <h4 className="font-medium text-gray-900">Suggested Questions</h4>
       
-      {/* Questions ScrollView */}
       <div className="flex gap-3 overflow-x-auto py-2 hide-scrollbar">
         {questions.map((question, index) => (
           <Button
@@ -171,7 +171,6 @@ export function SuggestedQuestions({
         ))}
       </div>
 
-      {/* Answer Display */}
       {selectedQuestion && (
         <div className="rounded-lg border bg-card p-6 shadow-sm">
           {isLoading ? (
