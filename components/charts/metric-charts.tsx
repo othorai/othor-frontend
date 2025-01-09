@@ -49,12 +49,15 @@ export function MetricChart({ data, type = 'line', height = 300, compactView = f
     );
   }
 
-  const chartData = data.graph_data.map(point => ({
-    date: new Date(point.date).toLocaleDateString(),
-    value: point.value,
-    ma3: point.ma3,
-    ma7: point.ma7
-  }));
+  const chartData = data.graph_data
+    .map(point => ({
+      date: new Date(point.date).toLocaleDateString(),
+      originalDate: new Date(point.date), // Keep original date for sorting
+      value: point.value,
+      ma3: point.ma3,
+      ma7: point.ma7
+    }))
+    .sort((a, b) => a.originalDate.getTime() - b.originalDate.getTime()); // Sort chronologically
 
   // Calculate domain with reduced scale for compact view
   const yValues = chartData.map(d => d.value);
