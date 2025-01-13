@@ -1,3 +1,5 @@
+// components/settings/data-sources/data-source-list.tsx
+
 import { FC, useState, useCallback, useEffect } from 'react';
 import { Plus } from 'lucide-react';
 import { Card } from "@/components/ui/card";
@@ -8,6 +10,10 @@ import EditDataSourceModal from './edit-data-source-modal';
 import { DataSource } from '@/types/data-sources';
 import { useToast } from "@/hooks/use-toast";
 
+const maxDataSources = process.env.NEXT_PUBLIC_MAX_DATA_SOURCES 
+  ? Number(process.env.NEXT_PUBLIC_MAX_DATA_SOURCES) || null
+  : null;
+  
 interface DataSourcesListProps {
   dataSources: DataSource[];
   onConnectSource: (sourceData: any) => Promise<void>;
@@ -115,6 +121,9 @@ export const DataSourcesList: FC<DataSourcesListProps> = ({
     }
   }, [onDeleteSource, deletingSourceIds, toast]);
 
+  const isLimitReached = maxDataSources !== null && localDataSources.length >= maxDataSources;
+  const limitDisplay = maxDataSources !== null ? `(${localDataSources.length}/${maxDataSources})` : `(${localDataSources.length})`;
+
   if (!localDataSources.length) {
     return (
       <Card className="p-6">
@@ -123,7 +132,7 @@ export const DataSourcesList: FC<DataSourcesListProps> = ({
             <h3 className="text-lg font-medium">Data Sources</h3>
             <Button onClick={() => setIsConnectModalOpen(true)}>
               <Plus className="w-4 h-4 mr-2" />
-              Connect Data Source (0/5)
+              Connect Data Source {maxDataSources !== null ? `(0/${maxDataSources})` : '(0)'}
             </Button>
           </div>
           <div className="text-center py-8 text-muted-foreground">
@@ -147,10 +156,10 @@ export const DataSourcesList: FC<DataSourcesListProps> = ({
           <h3 className="text-lg font-medium">Data Sources</h3>
           <Button
             onClick={() => setIsConnectModalOpen(true)}
-            disabled={localDataSources.length >= 5}
+            disabled={isLimitReached}
           >
             <Plus className="w-4 h-4 mr-2" />
-            Connect Data Source ({localDataSources.length}/5)
+            Connect Data Source {limitDisplay}
           </Button>
         </div>
         

@@ -161,10 +161,8 @@ export default function ChatPage() {
         isUser: false 
       };
       
-      // Update messages with both user and bot messages
       setMessages([...messages, userMessage, botMessage]);
   
-      // If this is a new chat session, create entry
       if (!sessionId && data.session_id) {
         const newSession: ChatSessionHistory = {
           session_id: data.session_id,
@@ -179,15 +177,13 @@ export default function ChatPage() {
         };
         setChatHistory([newSession, ...chatHistory]);
       }
-      
-      
   
       if (data.session_id) {
         setSessionId(data.session_id);
       }
   
       setShowSuggestions(true);
-      fetchChatHistory();
+      await fetchChatHistory();
   
     } catch (error) {
       console.error('Error sending message:', error);

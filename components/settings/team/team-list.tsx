@@ -8,6 +8,10 @@ import { Badge } from "@/components/ui/badge";
 import { AddMemberModal } from './add-member-modal';
 import { useTeam } from '@/components/settings/hooks/use-team';
 
+const maxTeamMembers = process.env.NEXT_PUBLIC_TEAM_MEMBERS 
+  ? Number(process.env.NEXT_PUBLIC_TEAM_MEMBERS) 
+  : null;
+
 interface Organization {
   id: string;
   name: string;
@@ -43,6 +47,9 @@ export const TeamList: FC<TeamListProps> = ({
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isAddingMember, setIsAddingMember] = useState(false);
 
+  const isLimitReached = maxTeamMembers !== null && teamMembers.length >= maxTeamMembers;
+  const memberDisplay = maxTeamMembers !== null ? `(${teamMembers.length}/${maxTeamMembers})` : `(${teamMembers.length})`;
+
   const handleAddMemberSubmit = async (emailData: { email: string }) => {
     setIsAddingMember(true);
     try {
@@ -66,7 +73,7 @@ export const TeamList: FC<TeamListProps> = ({
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
-            <h3 className="text-lg font-medium">Team Members</h3>
+            <h3 className="text-lg font-medium">Team Members {memberDisplay}</h3>
             {activeOrganization && (
               <p className="text-sm text-muted-foreground mt-1">
                 {activeOrganization.name}
@@ -74,7 +81,10 @@ export const TeamList: FC<TeamListProps> = ({
             )}
           </div>
           {currentUser?.is_admin && (
-            <Button onClick={() => setIsAddModalOpen(true)}>
+            <Button 
+              onClick={() => setIsAddModalOpen(true)}
+              disabled={isLimitReached}
+            >
               <Plus className="w-4 h-4 mr-2" />
               Add Member
             </Button>

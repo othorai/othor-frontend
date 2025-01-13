@@ -1,3 +1,5 @@
+// components/settings/data-sources/data-source-card.tsx
+
 import { FC } from 'react';
 import { Edit, Trash2, Loader2 } from 'lucide-react';
 import { Card } from "@/components/ui/card";

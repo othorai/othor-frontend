@@ -5,6 +5,10 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { WorkspaceCard } from './workspace-card';
 
+const maxWorkspaces = process.env.NEXT_PUBLIC_MAX_WORKSPACES 
+  ? Number(process.env.NEXT_PUBLIC_MAX_WORKSPACES) 
+  : null;
+
 interface Organization {
   id: string;
   name: string;
@@ -28,6 +32,10 @@ export const WorkspacesList: FC<WorkspacesListProps> = ({
   onEditWorkspace,
   onDeleteWorkspace
 }) => {
+
+  const isLimitReached = maxWorkspaces !== null && organizations.length >= maxWorkspaces;
+  const workspaceDisplay = maxWorkspaces !== null ? `(${organizations.length}/${maxWorkspaces})` : `(${organizations.length})`;
+
   // Get the current organization ID directly from localStorage
   const [currentOrgId, setCurrentOrgId] = useState(() => 
     localStorage.getItem('currentOrgId')
@@ -42,8 +50,11 @@ export const WorkspacesList: FC<WorkspacesListProps> = ({
     <Card className="p-6">
       <div className="space-y-6">
         <div className="flex justify-between items-center">
-          <h3 className="text-lg font-medium">Workspaces</h3>
-          <Button onClick={onCreateWorkspace}>
+          <h3 className="text-lg font-medium">Workspaces {workspaceDisplay}</h3>
+          <Button 
+            onClick={onCreateWorkspace}
+            disabled={isLimitReached}
+          >
             <Plus className="w-4 h-4 mr-2" />
             Create Workspace
           </Button>
