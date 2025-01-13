@@ -1,7 +1,7 @@
 const getApiUrl = () => {
-  // For server-side
-  if (process.env.API_URL) {
-    return process.env.API_URL;
+  // For both server-side and client-side
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL;
   }
   
   return 'http://localhost:8004';
