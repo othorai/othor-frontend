@@ -14,13 +14,11 @@ import { API_URL } from '@/lib/config';
 
 export default function SignupPage() {
   const [email, setEmail] = useState('');
-  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
-  const [isUsernameModified, setIsUsernameModified] = useState(false);
   const [acceptTerms, setAcceptTerms] = useState(false);
   
   const router = useRouter();
@@ -33,7 +31,7 @@ export default function SignupPage() {
     }
   }, [router]);
 
-  const generateDefaultUsername = (email: string) => {
+  const generateUsername = (email: string) => {
     const namePart = email.split('@')[0];
     const firstThreeLetters = namePart.slice(0, 3).toLowerCase();
     const randomNumber = Math.floor(1000 + Math.random() * 9000);
@@ -50,9 +48,6 @@ export default function SignupPage() {
       return false;
     } else {
       setEmailError('');
-      if (!isUsernameModified) {
-        setUsername(generateDefaultUsername(text));
-      }
       return true;
     }
   };
@@ -81,7 +76,7 @@ export default function SignupPage() {
     e.preventDefault();
     if (isLoading) return;
 
-    if (!email || !username || !password || !confirmPassword) {
+    if (!email || !password || !confirmPassword) {
       toast({
         variant: "destructive",
         title: "Error",
@@ -122,6 +117,7 @@ export default function SignupPage() {
     setIsLoading(true);
 
     try {
+      const username = generateUsername(email);
       const response = await fetch(`${API_URL}/authorization/signup`, {
         method: 'POST',
         headers: {
@@ -193,21 +189,6 @@ export default function SignupPage() {
               {emailError && (
                 <p className="text-sm text-red-500">{emailError}</p>
               )}
-            </div>
-
-            <div className="space-y-2">
-              <Input
-                type="text"
-                placeholder="Username"
-                value={username}
-                onChange={(e) => {
-                  setUsername(e.target.value);
-                  setIsUsernameModified(true);
-                }}
-                disabled={isLoading}
-                required
-                className="h-12"
-              />
             </div>
 
             <div className="space-y-2">
