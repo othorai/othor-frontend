@@ -33,7 +33,8 @@ export function ConnectDataSourceModal({
     password: '',
     database: '',
     schema: '',
-    table_name: ''
+    table_name: '',
+    collection: '' // Added for MongoDB
   });
 
   const sanitizeHost = (host: string) => {
@@ -61,6 +62,15 @@ export function ConnectDataSourceModal({
 
   const getSourceSpecificFields = () => {
     switch (sourceType) {
+      case 'mongodb':
+        return {
+          host: formData.host,
+          port: formData.port || '27017',
+          username: formData.username,
+          password: formData.password,
+          database: formData.database,
+          table_name: formData.collection // Use collection as table_name for MongoDB
+        };
       case 'snowflake':
         return {
           account: formData.account,
@@ -89,14 +99,6 @@ export function ConnectDataSourceModal({
           database: formData.database,
           table_name: formData.table_name
         };
-      case 'mssql':
-        return {
-          host: formData.host,
-          username: formData.username,
-          password: formData.password,
-          database: formData.database,
-          table_name: formData.table_name
-        };
       default:
         return {};
     }
@@ -114,7 +116,8 @@ export function ConnectDataSourceModal({
       password: '',
       database: '',
       schema: '',
-      table_name: ''
+      table_name: '',
+      collection: ''
     });
     onClose();
   };
@@ -127,14 +130,15 @@ export function ConnectDataSourceModal({
         if (sourceType === 'snowflake') {
           return formData.account && formData.warehouse;
         }
-        return formData.host && (sourceType === 'mysql' ? formData.port : true);
+        return formData.host && 
+          (sourceType === 'mysql' || sourceType === 'mongodb' ? formData.port : true);
       case 3:
         return formData.username && formData.password;
       case 4:
-        if (sourceType === 'postgresql') {
-          return formData.database && formData.table_name;
+        if (sourceType === 'mongodb') {
+          return formData.database && formData.collection;
         }
-        if (sourceType === 'mssql') {
+        if (sourceType === 'postgresql' || sourceType === 'mssql') {
           return formData.database && formData.table_name;
         }
         return formData.database && formData.schema && formData.table_name;
@@ -155,6 +159,7 @@ export function ConnectDataSourceModal({
                   <SelectValue placeholder="Select source type" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="mongodb">MongoDB</SelectItem>
                   <SelectItem value="snowflake">Snowflake</SelectItem>
                   <SelectItem value="mysql">MySQL</SelectItem>
                   <SelectItem value="postgresql">PostgreSQL</SelectItem>
@@ -207,12 +212,12 @@ export function ConnectDataSourceModal({
                 onChange={(e) => setFormData({ ...formData, host: e.target.value })}
               />
             </div>
-            {sourceType === 'mysql' && (
+            {(sourceType === 'mysql' || sourceType === 'mongodb') && (
               <div className="space-y-2">
                 <Label>Port</Label>
                 <Input
                   type="number"
-                  placeholder="Port number (default: 3306)"
+                  placeholder={sourceType === 'mongodb' ? "Port number (default: 27017)" : "Port number (default: 3306)"}
                   value={formData.port}
                   onChange={(e) => setFormData({ ...formData, port: e.target.value })}
                 />
@@ -255,24 +260,37 @@ export function ConnectDataSourceModal({
                 onChange={(e) => setFormData({ ...formData, database: e.target.value })}
               />
             </div>
-            {sourceType !== 'postgresql' && sourceType !== 'mssql' && (
+            {sourceType === 'mongodb' ? (
               <div className="space-y-2">
-                <Label>Schema</Label>
+                <Label>Collection</Label>
                 <Input
-                  placeholder="Schema name"
-                  value={formData.schema}
-                  onChange={(e) => setFormData({ ...formData, schema: e.target.value })}
+                  placeholder="Collection name"
+                  value={formData.collection}
+                  onChange={(e) => setFormData({ ...formData, collection: e.target.value })}
                 />
               </div>
+            ) : (
+              <>
+                {sourceType !== 'postgresql' && sourceType !== 'mssql' && (
+                  <div className="space-y-2">
+                    <Label>Schema</Label>
+                    <Input
+                      placeholder="Schema name"
+                      value={formData.schema}
+                      onChange={(e) => setFormData({ ...formData, schema: e.target.value })}
+                    />
+                  </div>
+                )}
+                <div className="space-y-2">
+                  <Label>Table Name</Label>
+                  <Input
+                    placeholder="Table name"
+                    value={formData.table_name}
+                    onChange={(e) => setFormData({ ...formData, table_name: e.target.value })}
+                  />
+                </div>
+              </>
             )}
-            <div className="space-y-2">
-              <Label>Table Name</Label>
-              <Input
-                placeholder="Table name"
-                value={formData.table_name}
-                onChange={(e) => setFormData({ ...formData, table_name: e.target.value })}
-              />
-            </div>
           </div>
         );
     }
