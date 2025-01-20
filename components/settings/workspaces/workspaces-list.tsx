@@ -32,25 +32,48 @@ export const WorkspacesList: FC<WorkspacesListProps> = ({
   onEditWorkspace,
   onDeleteWorkspace
 }) => {
-
   const isLimitReached = maxWorkspaces !== null && organizations.length >= maxWorkspaces;
-  const workspaceDisplay = maxWorkspaces !== null ? `(${organizations.length}/${maxWorkspaces})` : `(${organizations.length})`;
-
-  // Get the current organization ID directly from localStorage
-  const [currentOrgId, setCurrentOrgId] = useState(() => 
+  
+  const [currentOrgId, setCurrentOrgId] = useState<string | null>(() => 
     localStorage.getItem('currentOrgId')
   );
 
-  // Update currentOrgId whenever localStorage changes
   useEffect(() => {
-    setCurrentOrgId(localStorage.getItem('currentOrgId'));
-  }, [activeOrganization?.id]); // Update when activeOrganization changes
+    // Update when activeOrganization changes
+    if (activeOrganization?.id) {
+      setCurrentOrgId(activeOrganization.id);
+    }
+
+    // Also listen for organization change events
+    const handleOrgChange = (event: CustomEvent<{ id: string; name: string }>) => {
+      setCurrentOrgId(event.detail.id);
+    };
+
+    window.addEventListener('organizationChanged', handleOrgChange as EventListener);
+    
+    return () => {
+      window.removeEventListener('organizationChanged', handleOrgChange as EventListener);
+    };
+  }, [activeOrganization]);
+
+  // Sync with localStorage changes
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const newOrgId = localStorage.getItem('currentOrgId');
+      if (newOrgId !== currentOrgId) {
+        setCurrentOrgId(newOrgId);
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, [currentOrgId]);
 
   return (
     <Card className="p-6">
       <div className="space-y-6">
         <div className="flex justify-between items-center">
-          <h3 className="text-lg font-medium">Workspaces {workspaceDisplay}</h3>
+          <h3 className="text-lg font-medium">Workspaces ({organizations.length})</h3>
           <Button 
             onClick={onCreateWorkspace}
             disabled={isLimitReached}

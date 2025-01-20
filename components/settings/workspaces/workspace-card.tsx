@@ -1,7 +1,8 @@
 // components/settings/workspaces/workspace-card.tsx
-import { FC, useState } from 'react';
+import { FC, useState, useEffect } from 'react';
 import { CheckCircle2 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -36,16 +37,25 @@ export const WorkspaceCard: FC<WorkspaceCardProps> = ({
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editedName, setEditedName] = useState(organization.name);
   const [isSwitching, setIsSwitching] = useState(false);
+  const [localIsActive, setLocalIsActive] = useState(isActive);
   const isAdmin = organization.role === 'admin';
 
+  useEffect(() => {
+    setLocalIsActive(isActive);
+  }, [isActive]);
+
   const handleSwitch = async () => {
-    if (isActive) return;
+    if (localIsActive) return;
     
     try {
       setIsSwitching(true);
+      setLocalIsActive(true);  // Set active immediately
       await onSwitch(organization.id);
     } catch (error) {
       console.error('Error switching organization:', error);
+      setLocalIsActive(false);  // Reset on error
+    } finally {
+      setIsSwitching(false);
     }
   };
 
@@ -53,7 +63,7 @@ export const WorkspaceCard: FC<WorkspaceCardProps> = ({
     <div className="flex items-center justify-between py-4">
       <div className="flex items-center space-x-4">
         <div className="font-medium">{organization.name}</div>
-        {isActive && (
+        {localIsActive && (
           <CheckCircle2 className="w-5 h-5 text-primary" />
         )}
       </div>
@@ -62,9 +72,13 @@ export const WorkspaceCard: FC<WorkspaceCardProps> = ({
           variant="outline"
           size="sm"
           onClick={handleSwitch}
-          disabled={isSwitching || isActive}
+          disabled={localIsActive || isSwitching}
+          className={cn(
+            "min-w-[100px]",
+            localIsActive && "border-green-500 text-green-500 hover:text-green-500 hover:border-green-500 bg-transparent opacity-100"
+          )}
         >
-          {isSwitching ? 'Switching...' : isActive ? 'Current' : 'Switch'}
+          {localIsActive ? "Current" : isSwitching ? "Switching..." : "Switch"}
         </Button>
         {isAdmin && (
           <>
@@ -80,7 +94,7 @@ export const WorkspaceCard: FC<WorkspaceCardProps> = ({
               size="sm"
               className="text-red-600"
               onClick={() => onDelete(organization.id)}
-              disabled={isActive}
+              disabled={localIsActive}
             >
               Delete
             </Button>

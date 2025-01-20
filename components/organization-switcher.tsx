@@ -50,21 +50,44 @@ export function OrganizationSwitcher() {
 
       if (!response.ok) throw new Error('Failed to fetch organizations');
 
-      const data = await response.json();
-      setOrganizations(data || []);
+      const orgs = await response.json();
+
+      // Fetch roles for each organization
+      const orgsWithRoles = await Promise.all(orgs.map(async (org: Organization) => {
+        try {
+          const roleResponse = await fetch(`${API_URL}/authorization/org_role/${org.id}`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+          });
+          
+          if (roleResponse.ok) {
+            const roleData = await roleResponse.json();
+            return {
+              ...org,
+              role: roleData.role
+            };
+          }
+          return org;
+        } catch (error) {
+          console.error(`Error fetching role for org ${org.id}:`, error);
+          return org;
+        }
+      }));
+
+      setOrganizations(orgsWithRoles || []);
 
       // Update active organization if needed
       const currentOrgId = localStorage.getItem('currentOrgId');
       if (currentOrgId) {
-        const activeOrg = data.find((org: Organization) => org.id === currentOrgId);
+        const activeOrg = orgsWithRoles.find((org: Organization) => org.id === currentOrgId);
         if (activeOrg) {
           setActiveOrganization(activeOrg);
         }
-      } else if (data.length > 0) {
-        // Set first org as default if none selected
-        setActiveOrganization(data[0]);
-        localStorage.setItem('currentOrgId', data[0].id);
-        localStorage.setItem('currentOrgName', data[0].name);
+      } else if (orgsWithRoles.length > 0) {
+        setActiveOrganization(orgsWithRoles[0]);
+        localStorage.setItem('currentOrgId', orgsWithRoles[0].id);
+        localStorage.setItem('currentOrgName', orgsWithRoles[0].name);
       }
     } catch (error) {
       console.error('Error fetching organizations:', error);

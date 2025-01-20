@@ -139,11 +139,9 @@ export default function SettingsPage() {
           localStorage.setItem('currentOrgName', newOrg.name);
         }
         
-        // Update the data
         await initializeData();
         
-        // Reload the page
-        window.location.reload();
+        router.refresh();
       }
     } catch (error) {
       console.error('Error switching workspace:', error);
