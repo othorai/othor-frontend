@@ -21,6 +21,7 @@ interface DataSource {
 interface UseDataSourceReturn {
   dataSources: DataSource[];
   isLoading: boolean;
+  isAdmin: boolean; 
   fetchDataSources: (organizationId: string) => Promise<void>;
   handleConnectDataSource: (organizationId: string, sourceData: Partial<DataSource>) => Promise<boolean>;
   handleEditDataSource: (organizationId: string, sourceId: string, sourceData: Partial<DataSource>) => Promise<boolean>;
@@ -32,6 +33,7 @@ export function useDataSource(): UseDataSourceReturn {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const fetchDataSources = useCallback(async (organizationId: string) => {
     if (!organizationId) {
@@ -47,32 +49,52 @@ export function useDataSource(): UseDataSourceReturn {
         return;
       }
 
-      const response = await fetch(
-        `${API_URL}/data-source/organization/${organizationId}/data-sources`,
+      // First fetch the user's role
+      const roleResponse = await fetch(
+        `${API_URL}/authorization/org_role/${organizationId}`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
-          },
-          cache: 'no-store'
+          }
         }
       );
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch data sources');
-      }
+      if (roleResponse.ok) {
+        const roleData = await roleResponse.json();
+        setIsAdmin(roleData.role === 'admin');
 
-      const data = await response.json();
-      
-      // Deduplicate data sources
-      const uniqueSources = new Map();
-      (data.data_sources || []).forEach((source: DataSource) => {
-        const key = `${source.connection_details?.database}_${source.connection_details?.host}_${source.table_name}`;
-        if (!uniqueSources.has(key)) {
-          uniqueSources.set(key, source);
+        // Only fetch data sources if user is admin
+        if (roleData.role === 'admin') {
+          const response = await fetch(
+            `${API_URL}/data-source/organization/${organizationId}/data-sources`,
+            {
+              headers: {
+                'Authorization': `Bearer ${token}`,
+              },
+              cache: 'no-store'
+            }
+          );
+
+          if (!response.ok) {
+            throw new Error('Failed to fetch data sources');
+          }
+
+          const data = await response.json();
+          
+          // Deduplicate data sources
+          const uniqueSources = new Map();
+          (data.data_sources || []).forEach((source: DataSource) => {
+            const key = `${source.connection_details?.database}_${source.connection_details?.host}_${source.table_name}`;
+            if (!uniqueSources.has(key)) {
+              uniqueSources.set(key, source);
+            }
+          });
+          
+          setDataSources(Array.from(uniqueSources.values()));
+        } else {
+          setDataSources([]); // Clear data sources for non-admin users
         }
-      });
-      
-      setDataSources(Array.from(uniqueSources.values()));
+      }
     } catch (error) {
       console.error('Error fetching data sources:', error);
       toast({
@@ -208,6 +230,7 @@ export function useDataSource(): UseDataSourceReturn {
     dataSources,
     isLoading,
     fetchDataSources,
+    isAdmin,
     handleConnectDataSource,
     handleEditDataSource,
     handleDeleteDataSource,

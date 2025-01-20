@@ -36,6 +36,7 @@ export const WorkspaceCard: FC<WorkspaceCardProps> = ({
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editedName, setEditedName] = useState(organization.name);
   const [isSwitching, setIsSwitching] = useState(false);
+  const isAdmin = organization.role === 'admin';
 
   const handleSwitch = async () => {
     if (isActive) return;
@@ -65,22 +66,26 @@ export const WorkspaceCard: FC<WorkspaceCardProps> = ({
         >
           {isSwitching ? 'Switching...' : isActive ? 'Current' : 'Switch'}
         </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setIsEditDialogOpen(true)}
-        >
-          Edit
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          className="text-red-600"
-          onClick={() => onDelete(organization.id)}
-          disabled={isActive}
-        >
-          Delete
-        </Button>
+        {isAdmin && (
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsEditDialogOpen(true)}
+            >
+              Edit
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-red-600"
+              onClick={() => onDelete(organization.id)}
+              disabled={isActive}
+            >
+              Delete
+            </Button>
+          </>
+        )}
       </div>
 
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>

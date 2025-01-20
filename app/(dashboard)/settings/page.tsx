@@ -88,6 +88,7 @@ export default function SettingsPage() {
   const {
     dataSources,
     isLoading: isDataSourceLoading,
+    isAdmin,
     fetchDataSources,
     handleConnectDataSource,
     handleEditDataSource,
@@ -255,6 +256,7 @@ export default function SettingsPage() {
               {activeSidebarItem === 'Data sources' && (
                 <DataSourcesList
                   dataSources={dataSources}
+                  isAdmin={isAdmin}
                   onConnectSource={(sourceData) => 
                     activeOrganization && handleConnectDataSource(activeOrganization.id, sourceData)
                   }

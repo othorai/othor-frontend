@@ -80,8 +80,9 @@ export function useOrganization(): UseOrganizationReturn {
   const fetchUserOrganizations = useCallback(async () => {
     const token = localStorage.getItem('authToken');
     if (!token) return;
-
+  
     try {
+      // First fetch organizations
       const response = await fetch(`${API_URL}/api/v1/organizations/`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -90,21 +91,45 @@ export function useOrganization(): UseOrganizationReturn {
       
       if (!response.ok) throw new Error('Failed to fetch workspaces');
       
-      const data = await response.json();
-      setOrganizations(data);
-
+      const orgs = await response.json();
+  
+      // Fetch roles for each organization
+      const orgsWithRoles = await Promise.all(orgs.map(async (org: Organization) => {
+        try {
+          const roleResponse = await fetch(`${API_URL}/authorization/org_role/${org.id}`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+          });
+          
+          if (roleResponse.ok) {
+            const roleData = await roleResponse.json();
+            return {
+              ...org,
+              role: roleData.role
+            };
+          }
+          return org;
+        } catch (error) {
+          console.error(`Error fetching role for org ${org.id}:`, error);
+          return org;
+        }
+      }));
+  
+      setOrganizations(orgsWithRoles);
+  
       // After getting organizations, ensure active organization is in sync
       const currentOrgId = localStorage.getItem('currentOrgId');
       if (currentOrgId) {
-        const currentOrg = data.find((org: Organization) => org.id === currentOrgId);
+        const currentOrg = orgsWithRoles.find((org: Organization) => org.id === currentOrgId);
         if (currentOrg) {
           setActiveOrganization(currentOrg);
         }
-      } else if (data.length > 0) {
+      } else if (orgsWithRoles.length > 0) {
         // If no current org in localStorage, set first org as active
-        setActiveOrganization(data[0]);
-        localStorage.setItem('currentOrgId', data[0].id);
-        localStorage.setItem('currentOrgName', data[0].name);
+        setActiveOrganization(orgsWithRoles[0]);
+        localStorage.setItem('currentOrgId', orgsWithRoles[0].id);
+        localStorage.setItem('currentOrgName', orgsWithRoles[0].name);
       }
     } catch (error) {
       console.error('Error fetching workspaces:', error);

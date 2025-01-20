@@ -19,6 +19,7 @@ interface DataSourcesListProps {
   onConnectSource: (sourceData: any) => Promise<void>;
   onEditSource: (sourceId: string, sourceData: Partial<DataSource>) => Promise<boolean>;
   onDeleteSource: (sourceId: string) => Promise<void>;
+  isAdmin?: boolean;
 }
 
 export const DataSourcesList: FC<DataSourcesListProps> = ({
@@ -26,6 +27,7 @@ export const DataSourcesList: FC<DataSourcesListProps> = ({
   onConnectSource,
   onEditSource,
   onDeleteSource,
+  isAdmin = false,
 }) => {
   const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
@@ -124,6 +126,22 @@ export const DataSourcesList: FC<DataSourcesListProps> = ({
   const isLimitReached = maxDataSources !== null && localDataSources.length >= maxDataSources;
   const limitDisplay = maxDataSources !== null ? `(${localDataSources.length}/${maxDataSources})` : `(${localDataSources.length})`;
 
+  if (!isAdmin) {
+    return (
+      <Card className="p-6">
+        <div className="space-y-6">
+          <div className="flex justify-between items-center">
+            <h3 className="text-lg font-medium">Data Sources</h3>
+          </div>
+          <div className="text-center py-8 text-muted-foreground">
+            Only admin can see data source details
+          </div>
+        </div>
+      </Card>
+    );
+  }
+
+  // If admin but no data sources
   if (!localDataSources.length) {
     return (
       <Card className="p-6">
