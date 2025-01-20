@@ -304,16 +304,6 @@ export function NarrativeCard({
           </div>
         )}
 
-        {/* Add the SuggestedQuestions component */}
-<SuggestedQuestions
-  articleId={articleId}
-  title={title}
-  content={content}
-  category={category}
-  timePeriod={timePeriod}
-  metrics={graphData}
-/>
-
         {/* Card Actions */}
         <div className="flex items-center justify-between mt-6 pt-4">
           <div className="flex items-center gap-4">

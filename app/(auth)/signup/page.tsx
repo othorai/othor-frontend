@@ -140,7 +140,7 @@ export default function SignupPage() {
       }
 
       toast({
-        title: "Account created successfully",
+        title: "Registered successfully!",
         description: "Please log in with your credentials.",
       });
 
