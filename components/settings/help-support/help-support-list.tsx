@@ -58,6 +58,8 @@ const HelpAndSupport: FC = () => {
             <a
               key={item.title}
               href={item.href}
+              target="_blank"
+              rel="noopener noreferrer"
               className="block p-4 rounded-lg border border-border hover:bg-accent transition-colors duration-200"
             >
               <div className="flex items-start gap-4">
