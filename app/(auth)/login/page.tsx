@@ -1,7 +1,7 @@
 // app/(auth)/login/page.tsx
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Button } from "@/components/ui/button";
@@ -11,24 +11,43 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 
+// Loading overlay component
+const LoadingOverlay = () => (
+  <div className="fixed inset-0 bg-background flex items-center justify-center z-50">
+    <div className="text-center space-y-4">
+      <Loader2 className="h-8 w-8 animate-spin mx-auto" />
+      <p className="text-muted-foreground">Signing you in...</p>
+    </div>
+  </div>
+);
+
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
-  const { login } = useAuth();
+  const { login, user } = useAuth();
 
+  // Redirect if user is already logged in
+  useEffect(() => {
+    if (user) {
+      router.push('/home');
+    }
+  }, [user, router]);
   
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isLoading) return;
 
     setIsLoading(true);
+    // Show the redirecting overlay immediately when login starts
+    setIsRedirecting(true);
 
     try {
-      await login(email, password, rememberMe); // Pass rememberMe state
+      await login(email, password, rememberMe);
       
       toast({
         title: "Login successful",
@@ -42,10 +61,17 @@ export default function LoginPage() {
         title: "Login failed",
         description: error instanceof Error ? error.message : "An error occurred during login",
       });
+      // Only hide the redirecting overlay if there's an error
+      setIsRedirecting(false);
     } finally {
       setIsLoading(false);
     }
-};
+  };
+
+  // Show loading overlay while redirecting
+  if (isRedirecting) {
+    return <LoadingOverlay />;
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center">
