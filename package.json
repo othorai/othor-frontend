@@ -25,6 +25,7 @@
     "@radix-ui/react-toast": "^1.2.2",
     "@radix-ui/react-tooltip": "^1.1.4",
     "class-variance-authority": "^0.7.1",
+    "@radix-ui/react-alert-dialog": "^1.0.5",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "html2canvas": "^1.4.1",
@@ -40,7 +41,10 @@
     "recharts": "^2.13.3",
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7",
-    "zustand": "^4.4.7"
+    "zustand": "^4.4.7",
+    "@hookform/resolvers": "^3.3.4",
+    "react-hook-form": "^7.51.0",
+    "zod": "^3.22.4"
   },
   "devDependencies": {
     "@types/js-cookie": "^3.0.6",

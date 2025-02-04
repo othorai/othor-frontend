@@ -7,6 +7,7 @@ import { AuthProvider } from "@/context/auth-context";
 import { NarrativesProvider } from '@/context/NarrativesContext';
 import { ChatProvider } from '@/context/ChatContext';
 import { MetricsProvider } from '@/context/MetricsContext';
+import { AgentsProvider } from '@/context/AgentsContext';
 
 export const metadata = {
   title: 'Othor AI',
@@ -28,13 +29,15 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <AuthProvider>
-            <NarrativesProvider>
-              <MetricsProvider>
-                <ChatProvider>
-                  {children}
-                </ChatProvider>
-              </MetricsProvider>
-            </NarrativesProvider>
+            <AgentsProvider>
+              <NarrativesProvider>
+                <MetricsProvider>
+                  <ChatProvider>
+                    {children}
+                  </ChatProvider>
+                </MetricsProvider>
+              </NarrativesProvider>
+            </AgentsProvider>
           </AuthProvider>
           <Toaster />
         </ThemeProvider>

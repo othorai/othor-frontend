@@ -1,3 +1,4 @@
+//components/narratives/charts.tsx
 import React, { useMemo } from 'react';
 import { format } from 'date-fns';
 import {
@@ -9,6 +10,10 @@ import {
   Area,
   PieChart,
   Pie,
+  ScatterChart,
+  Scatter,
+  FunnelChart,
+  Funnel,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -83,6 +88,22 @@ const CustomXAxisTick = ({ x, y, payload }) => {
 };
 
 export function NarrativeChart({ data, title, timePeriod }) {
+  // Define axisProps at the top level
+  const axisProps = {
+    xAxis: {
+      dataKey: "name",
+      height: 60,
+      tick: CustomXAxisTick,
+      interval: 0,
+      tickMargin: 30,
+      padding: { left: 0, right: 15 }
+    },
+    yAxis: {
+      tickFormatter: formatValue,
+      width: 80
+    }
+  };
+  
   // Memoize calculations to prevent unnecessary rerenders
   const {
     chartData,
@@ -143,20 +164,18 @@ export function NarrativeChart({ data, title, timePeriod }) {
       { name: `Current (${currentDate})`, value: data.current }
     ];
 
-    // Determine chart type
-    let type = 'line'; // default
-    const metricName = title.toLowerCase();
-    
-    if (metricName.includes('ratio') || 
-        metricName.includes('index') || 
-        metricName.includes('percentage')) {
-      type = 'pie';
-    } else if (metricName.includes('cost') || 
-               metricName.includes('revenue') || 
-               metricName.includes('sales')) {
-      type = 'bar';
-    } else if (Math.abs(pctChange) > 20) {
-      type = 'area';
+    // Get chart type from visualization config or determine default
+    let chartType = data.visualization?.type?.toLowerCase() || 'line';
+    if (!data.visualization?.type) {
+      // Fallback logic
+      const metricName = title.toLowerCase();
+      if (metricName.includes('ratio') || metricName.includes('percentage')) {
+        chartType = 'pie';
+      } else if (metricName.includes('cost') || metricName.includes('revenue')) {
+        chartType = 'bar';
+      } else if (Math.abs(pctChange) > 20) {
+        chartType = 'area';
+      }
     }
 
     return {
@@ -164,56 +183,127 @@ export function NarrativeChart({ data, title, timePeriod }) {
       percentageChange: pctChange,
       isPositive: isPos,
       isValidData: isValid,
-      chartType: type
+      chartType
     };
   }, [data, title, timePeriod]);
 
-  // Memoize colors and styles
-  const colors = useMemo(() => ({
-    positive: '#4CAF50',  // Lighter variant of your primary purple
-    negative: '#FF4D8C',  // Pink-red that complements purple
-    previous: '#6B7280',  // Neutral gray
-    current: '#C000FA'   // Your primary brand color
-  }), []);
+  // Get visualization settings
+  const visualConfig = {
+    color_scheme: data.visualization?.color_scheme || ['#C000FA'],
+    show_points: data.visualization?.show_points ?? true,
+    show_trend_lines: data.visualization?.show_trend_lines ?? false
+  };
 
-  const chartProps = useMemo(() => ({
-    width: "100%",
-    height: 300,
-    margin: { top: 20, right: 40, left: 40, bottom: 80 }
-  }), []);
-
-  const axisProps = useMemo(() => ({
-    xAxis: {
-      dataKey: "name",
-      height: 60,
-      tick: CustomXAxisTick,
-      interval: 0,
-      tickMargin: 30,
-      padding: { left: 0, right: 15 } // Add padding to prevent cropping
-    },
-    yAxis: {
-      tickFormatter: formatValue,
-      width: 80
-    }
-  }), []);
-
-  const tooltipProps = useMemo(() => ({
-    formatter: (value) => [formatValue(value), 'Value'],
-    contentStyle: {
-      backgroundColor: 'white',
-      border: '1px solid #ccc',
-      borderRadius: '4px',
-      padding: '8px'
-    }
-  }), []);
 
   const renderChart = () => {
-    console.log(`Rendering ${chartType} chart for ${title} (${isValidData ? percentageChange.toFixed(2) + '%' : 'N/A'} change)`);
-
-    switch (chartType) {
+    // Get colors and configuration from visualization
+    const colors = data.visualization?.value_format?.colors || ['#9467bd'];
+    const config = data.visualization || {};
+  
+    switch (chartType.toLowerCase()) {
+      case 'scatter':
+        const scatterData = [
+          { x: 'Previous', y: data.previous, label: 'Previous' },
+          { x: 'Current', y: data.current, label: 'Current' }
+        ];
+  
+        return (
+          <ResponsiveContainer width="100%" height={300}>
+            <ScatterChart margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis {...axisProps.xAxis} />
+              <YAxis {...axisProps.yAxis} />
+              <Tooltip 
+                cursor={{ strokeDasharray: '3 3' }}
+                content={({ active, payload }) => {
+                  if (active && payload && payload.length) {
+                    return (
+                      <div className="bg-white p-2 border border-gray-200 rounded shadow">
+                        <p className="font-medium">{payload[0].payload.label}</p>
+                        <p>{formatValue(payload[0].payload.y)}</p>
+                      </div>
+                    );
+                  }
+                  return null;
+                }}
+              />
+              <Scatter
+                data={scatterData}
+                fill={colors[0]}
+                line={{ stroke: colors[0] }}
+                shape={(props) => (
+                  <circle 
+                    {...props} 
+                    r={6} 
+                    stroke={colors[0]} 
+                    strokeWidth={2} 
+                    fill="#fff" 
+                  />
+                )}
+              />
+            </ScatterChart>
+          </ResponsiveContainer>
+        );
+  
+      case 'area':
+        return (
+          <ResponsiveContainer width="100%" height={300}>
+            <AreaChart data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis {...axisProps.xAxis} />
+              <YAxis {...axisProps.yAxis} />
+              <Tooltip />
+              <Area
+                type="monotone"
+                dataKey="value"
+                stroke={colors[0]}
+                fill={colors[0]}
+                fillOpacity={0.3}
+                dot={{
+                  stroke: colors[0],
+                  strokeWidth: 2,
+                  fill: "#fff",
+                  r: 4
+                }}
+              />
+              {config.show_trend_lines && (
+                <Area
+                  type="monotone"
+                  dataKey="trend"
+                  stroke={colors[1] || colors[0]}
+                  strokeDasharray="5 5"
+                  fill="none"
+                  dot={false}
+                />
+              )}
+            </AreaChart>
+          </ResponsiveContainer>
+        );
+  
+      case 'bar':
+        return (
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis {...axisProps.xAxis} />
+              <YAxis {...axisProps.yAxis} />
+              <Tooltip />
+              <Bar dataKey="value">
+                {chartData.map((entry, index) => (
+                  <Cell
+                    key={`cell-${index}`}
+                    fill={colors[index % colors.length]}
+                    stroke={colors[index % colors.length]}
+                  />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        );
+  
       case 'pie':
         return (
-          <ResponsiveContainer {...chartProps}>
+          <ResponsiveContainer width="100%" height={300}>
             <PieChart>
               <Pie
                 data={chartData}
@@ -223,98 +313,74 @@ export function NarrativeChart({ data, title, timePeriod }) {
                 cy="50%"
                 innerRadius={60}
                 outerRadius={80}
-                label={({ value }) => formatValue(value)}
+                label
               >
                 {chartData.map((entry, index) => (
-                  <Cell 
+                  <Cell
                     key={`cell-${index}`}
-                    fill={index === 0 ? colors.previous : colors.current}
+                    fill={colors[index % colors.length]}
+                    stroke={colors[index % colors.length]}
                   />
                 ))}
               </Pie>
-              <Tooltip {...tooltipProps} />
+              <Tooltip />
               <Legend />
             </PieChart>
           </ResponsiveContainer>
         );
-
-      case 'bar':
-        return (
-          <ResponsiveContainer {...chartProps}>
-            <BarChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200" />
-              <XAxis {...axisProps.xAxis} />
-              <YAxis {...axisProps.yAxis} />
-              <Tooltip {...tooltipProps} />
-              <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-                {chartData.map((entry, index) => (
-                  <Cell 
-                    key={`cell-${index}`}
-                    fill={index === 0 ? colors.previous : colors.current}
-                  />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        );
-
-      case 'area':
-        return (
-          <ResponsiveContainer {...chartProps}>
-            <AreaChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200" />
-              <XAxis {...axisProps.xAxis} />
-              <YAxis {...axisProps.yAxis} />
-              <Tooltip {...tooltipProps} />
-              <Area
-                type="monotone"
-                dataKey="value"
-                fill={isPositive ? colors.positive : colors.negative}
-                stroke={isPositive ? colors.positive : colors.negative}
-                fillOpacity={0.2}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        );
-
+  
       case 'line':
       default:
         return (
-          <ResponsiveContainer {...chartProps}>
+          <ResponsiveContainer width="100%" height={300}>
             <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200" />
+              <CartesianGrid strokeDasharray="3 3" />
               <XAxis {...axisProps.xAxis} />
               <YAxis {...axisProps.yAxis} />
-              <Tooltip {...tooltipProps} />
+              <Tooltip />
               <Line
                 type="monotone"
                 dataKey="value"
-                stroke={isPositive ? colors.positive : colors.negative}
+                stroke={colors[0]}
                 strokeWidth={2}
-                dot={{ strokeWidth: 2, fill: '#fff' }}
+                dot={{
+                  stroke: colors[0],
+                  strokeWidth: 2,
+                  fill: "#fff",
+                  r: 4
+                }}
               />
+              {config.show_trend_lines && (
+                <Line
+                  type="monotone"
+                  dataKey="trend"
+                  stroke={colors[1] || colors[0]}
+                  strokeDasharray="5 5"
+                  dot={false}
+                />
+              )}
             </LineChart>
           </ResponsiveContainer>
         );
     }
   };
-
-  return (
-    <div className="w-full bg-white rounded-lg p-4 shadow-sm">
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-medium">{title}</h3>
-        {isValidData && (
-          <div className={`text-sm ${isPositive ? 'text-green-600' : 'text-red-600'} font-medium`}>
-            {isPositive ? '↑' : '↓'} {Math.abs(percentageChange).toFixed(1)}%
+    
+      return (
+        <div className="w-full bg-white rounded-lg p-4 shadow-sm">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-medium">{title}</h3>
+            {isValidData && (
+              <div className={`text-sm ${isPositive ? 'text-green-600' : 'text-red-600'} font-medium`}>
+                {isPositive ? '↑' : '↓'} {Math.abs(percentageChange).toFixed(1)}%
+              </div>
+            )}
           </div>
-        )}
-      </div>
-      {renderChart()}
-      {isValidData && (
-        <div className="mt-4 text-sm text-gray-500 text-center">
-          {isPositive ? 'Increased' : 'Decreased'} by {Math.abs(percentageChange).toFixed(1)}% from previous period
+          {renderChart()}
+          {isValidData && (
+            <div className="mt-4 text-sm text-gray-500 text-center">
+              {isPositive ? 'Increased' : 'Decreased'} by {Math.abs(percentageChange).toFixed(1)}% from previous period
+            </div>
+          )}
         </div>
-      )}
-    </div>
-  );
-}
+      );
+    }
