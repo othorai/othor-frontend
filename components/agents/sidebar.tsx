@@ -1,10 +1,9 @@
-// components/agents/sidebar.tsx
 'use client';
 
 import { useAgents } from '@/context/AgentsContext';
 import { Button } from '@/components/ui/button';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { CreateAgentDialog } from './create-agent-dialog';
 import { EditAgentDialog } from './edit-agent-dialog';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -32,13 +31,53 @@ export function AgentsSidebar() {
   const [selectedInstanceId, setSelectedInstanceId] = useState<string>('');
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingInstanceId, setEditingInstanceId] = useState<string>('');
+  const [isOrgAdmin, setIsOrgAdmin] = useState(false);
+
+  // Fetch user's organization role
+  useEffect(() => {
+    const fetchOrgRole = async () => {
+      try {
+        const currentOrgId = localStorage.getItem('currentOrgId');
+        if (!currentOrgId) return;
+
+        const token = localStorage.getItem('authToken');
+        const response = await fetch(`http://localhost:8004/authorization/org_role/${currentOrgId}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setIsOrgAdmin(data.role === 'admin');
+        }
+      } catch (error) {
+        console.error('Error fetching organization role:', error);
+      }
+    };
+
+    fetchOrgRole();
+
+    // Listen for organization changes
+    const handleOrgChange = () => {
+      fetchOrgRole();
+    };
+
+    window.addEventListener('organizationChanged', handleOrgChange);
+    
+    return () => {
+      window.removeEventListener('organizationChanged', handleOrgChange);
+    };
+  }, []);
 
   const handleDelete = async (instanceId: string) => {
+    if (!isOrgAdmin) return;
     setSelectedInstanceId(instanceId);
     setDeleteDialogOpen(true);
   };
 
   const confirmDelete = async () => {
+    if (!isOrgAdmin) return;
     try {
       await deactivateAgentInstance(selectedInstanceId);
       if (selectedAgentId === selectedInstanceId) {
@@ -52,6 +91,7 @@ export function AgentsSidebar() {
   };
 
   const handleEdit = (instanceId: string) => {
+    if (!isOrgAdmin) return;
     setEditingInstanceId(instanceId);
     setEditDialogOpen(true);
   };
@@ -109,83 +149,93 @@ export function AgentsSidebar() {
                   {agent.name}
                 </Button>
                 
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleEdit(instance.id);
-                  }}
-                >
-                  <Pencil className="h-4 w-4" />
-                </Button>
-                
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-red-500 hover:text-red-600"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDelete(instance.id);
-                  }}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                {isOrgAdmin && (
+                  <>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEdit(instance.id);
+                      }}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-red-500 hover:text-red-600"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(instance.id);
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </>
+                )}
               </div>
             );
           })}
         </div>
       </div>
 
-      <div className="p-3 border-t mt-auto">
-        <Button
-          onClick={() => setCreateDialogOpen(true)}
-          className="w-full h-9"
-          variant="outline"
-          size="sm"
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Create Agent
-        </Button>
-      </div>
+      {isOrgAdmin && (
+        <div className="p-3 border-t mt-auto">
+          <Button
+            onClick={() => setCreateDialogOpen(true)}
+            className="w-full h-9"
+            variant="outline"
+            size="sm"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Create Agent
+          </Button>
+        </div>
+      )}
 
-      <CreateAgentDialog
-        open={createDialogOpen}
-        onOpenChange={setCreateDialogOpen}
-        agents={agents}
-      />
+      {isOrgAdmin && (
+        <>
+          <CreateAgentDialog
+            open={createDialogOpen}
+            onOpenChange={setCreateDialogOpen}
+            agents={agents}
+          />
 
-      <EditAgentDialog
-        open={editDialogOpen}
-        onOpenChange={setEditDialogOpen}
-        instanceId={editingInstanceId}
-      />
+          <EditAgentDialog
+            open={editDialogOpen}
+            onOpenChange={setEditDialogOpen}
+            instanceId={editingInstanceId}
+          />
 
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete Agent</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete this agent? This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="flex gap-2 justify-end mt-4">
-            <Button 
-              variant="outline" 
-              onClick={() => setDeleteDialogOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button 
-              variant="destructive"
-              onClick={confirmDelete}
-            >
-              Delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Delete Agent</DialogTitle>
+                <DialogDescription>
+                  Are you sure you want to delete this agent? This action cannot be undone.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter className="flex gap-2 justify-end mt-4">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setDeleteDialogOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  variant="destructive"
+                  onClick={confirmDelete}
+                >
+                  Delete
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </>
+      )}
     </div>
   );
 }

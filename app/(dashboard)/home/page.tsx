@@ -21,6 +21,29 @@ interface Article {
   category: string;
   time_period: string;
   isLiked: boolean;
+  agent_id?: string;
+}
+
+interface Agent {
+  id: string;
+  name: string;
+  code_name: string;
+  purpose: string;
+}
+
+interface AgentInstance {
+  id: string;
+  agent_id: string;
+  organization_id: number;
+  connection_id: string;
+  configuration: Record<string, any>;
+  is_active: boolean;
+  agent?: {
+    id: string;
+    name: string;
+    code_name: string;
+    purpose: string;
+  };
 }
 
 export default function HomePage() {
@@ -31,11 +54,18 @@ export default function HomePage() {
   const { toast } = useToast();
   const { narratives, setNarratives, lastFetchDate, setLastFetchDate } = useNarratives();
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
-  const { selectedAgentId, loadingAgents } = useAgents();
+  const { selectedAgentId, loadingAgents, agents, agentInstances } = useAgents();
 
   // Format today's date
   const today = new Date();
   const formattedDate = format(today, "dd MMM yyyy EEEE");
+
+  const getCurrentAgentName = () => {
+    if (!selectedAgentId) return "Daily Reporter";
+    
+    const agentDetails = agents.find((agent: Agent) => agent.id === selectedAgentId);
+    return agentDetails?.name || "Daily Reporter";
+  };
 
   useEffect(() => {
     const email = localStorage.getItem('savedEmail');
@@ -289,20 +319,28 @@ export default function HomePage() {
       <div className="flex-1 py-8 px-6">
         <div className="space-y-6 max-w-4xl mx-auto">
           {narratives && narratives.length > 0 ? (
-            narratives.map((article) => (
-              <NarrativeCard
-                key={article.id}
-                title={article.title}
-                content={article.content}
-                graphData={article.graph_data}
-                sourceInfo={article.source_info}
-                category={article.category}
-                timePeriod={article.time_period}
-                articleId={article.id}
-                isLiked={article.isLiked}
-                onLike={handleLike}
-              />
-            ))
+            narratives.map((article: Article) => {
+              // Get agent name based on article's agent_id if available, otherwise use current selected agent
+              const agentName = article.agent_id ? 
+                agents.find((agent: Agent) => agent.id === article.agent_id)?.name || getCurrentAgentName() :
+                getCurrentAgentName();
+              
+              return (
+                <NarrativeCard
+                  key={article.id}
+                  title={article.title}
+                  content={article.content}
+                  graphData={article.graph_data}
+                  sourceInfo={article.source_info}
+                  category={article.category}
+                  timePeriod={article.time_period}
+                  articleId={article.id}
+                  isLiked={article.isLiked}
+                  onLike={handleLike}
+                  agentName={agentName}
+                />
+              );
+            })
           ) : (
             <Card className="p-6 text-center">
               <p className="text-gray-600">No narratives available for {format(new Date(), 'dd MMM yyyy')}</p>

@@ -19,6 +19,7 @@ export function NarrativeCard({
   articleId,
   isLiked,
   onLike,
+  agentName
 }) {
   const [showFullDescription, setShowFullDescription] = useState(false);
   const [currentMetricIndex, setCurrentMetricIndex] = useState(0);
@@ -251,9 +252,16 @@ export function NarrativeCard({
   return (
     <Card className="w-full mb-6">
       <CardContent className="pt-6">
-        {/* Time Period */}
-        <div className="mb-2 text-base font-medium text-gray-500">
-          {formatTimePeriod(timePeriod)}
+        {/* Header with Time Period and Agent Name */}
+        <div className="flex items-center justify-between mb-2">
+          <div className="text-base font-medium text-gray-500">
+            {formatTimePeriod(timePeriod)}
+          </div>
+          {agentName && (
+            <div className="bg-purple-50 text-primary px-3 py-1 rounded-full text-sm">
+              {agentName}
+            </div>
+          )}
         </div>
         
         {/* Title */}

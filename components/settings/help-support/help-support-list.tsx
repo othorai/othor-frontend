@@ -15,31 +15,31 @@ const HelpAndSupport: FC = () => {
       title: "Tutorials & Documentation",
       description: "Learn how to use our platform with step-by-step guides and detailed documentation.",
       icon: Book,
-      href: "/docs"
+      href: "/learn"
     },
     {
       title: "Suggest a Feature",
       description: "Have an idea for improving our platform? We'd love to hear it.",
       icon: Lightbulb,
-      href: "/feedback"
+      href: "/suggest-a-feature"
     },
     {
       title: "Report a Bug",
       description: "Help us improve by reporting any issues you encounter.",
       icon: Bug,
-      href: "/bug-report"
+      href: "/report-a-bug"
     },
     {
       title: "Terms of Service",
       description: "Read our terms of service to understand your rights and responsibilities.",
       icon: FileText,
-      href: "/terms"
+      href: "/terms-of-service"
     },
     {
       title: "Privacy Policy",
       description: "Learn about how we handle and protect your data.",
       icon: Shield,
-      href: "/privacy"
+      href: "/privacy-policy"
     }
   ];
 
