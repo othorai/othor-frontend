@@ -18,6 +18,46 @@ interface Agent {
   is_active: boolean;
 }
 
+interface Goal {
+  metric_name: string;
+  target_value: number;
+  time_period: string;
+}
+
+interface AgentConfiguration {
+  goals?: Goal[];
+  [key: string]: any;  // For other configuration properties
+}
+
+interface DataSourceMapping {
+  datasource_id: string;
+  mapping_config: {
+    use_all_metrics: boolean;
+    refresh_schedule: string;
+    metric_mappings: Record<string, string>;
+  };
+}
+
+interface AgentInstanceUpdate {
+  organization_id: number;
+  connection_id: string;
+  configuration: {
+    goals: Array<{
+      metric_name: string;
+      target_value: number;
+      time_period: string;
+    }>;
+  };
+  data_sources: Array<{
+    datasource_id: string;
+    mapping_config: {
+      use_all_metrics: boolean;
+      refresh_schedule: string;
+      metric_mappings: Record<string, string>;
+    };
+  }>;
+}
+
 interface AgentInstance {
   id: string;
   agent_id: string;
@@ -48,7 +88,12 @@ interface AgentsContextType {
   fetchAgents: () => Promise<void>;
   createAgentInstance: (agentId: string, connectionId: string, config: any) => Promise<void>;
   deactivateAgentInstance: (instanceId: string) => Promise<void>;
-  updateAgentInstance: (instanceId: string, updates: any) => Promise<void>;
+  updateAgentInstance: (
+    instanceId: string,
+    connectionId: string,
+    configuration: AgentConfiguration,
+    dataSources: DataSourceMapping[]
+  ) => Promise<void>;
 }
 
 const AgentsContext = createContext<AgentsContextType | undefined>(undefined);
@@ -119,8 +164,11 @@ export function AgentsProvider({ children }: { children: React.ReactNode }) {
       setAgents(agentsData);
       setAgentInstances(instancesData);
 
+      // Only set selectedAgentId if it's not already set and there are instances
       if (!selectedAgentId && instancesData.length > 0) {
-        setSelectedAgentId(instancesData[0].agent_id);
+        const newSelectedId = instancesData[0].agent_id;
+        setSelectedAgentId(newSelectedId);
+        localStorage.setItem('lastSelectedAgentId', newSelectedId);
       }
 
     } catch (error) {
@@ -135,6 +183,15 @@ export function AgentsProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Update localStorage when selectedAgentId changes
+  useEffect(() => {
+    if (selectedAgentId) {
+      localStorage.setItem('lastSelectedAgentId', selectedAgentId);
+    } else {
+      localStorage.removeItem('lastSelectedAgentId');
+    }
+  }, [selectedAgentId]);
+  
   const createAgentInstance = async (
     agentId: string, 
     connectionId: string, 
@@ -258,34 +315,37 @@ export function AgentsProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const updateAgentInstance = async (instanceId: string, updates: any) => {
+  const updateAgentInstance = async (
+    instanceId: string, 
+    updates: any  // Change the parameters to accept the full update payload
+  ) => {
     try {
       const token = localStorage.getItem('authToken');
       if (!token) {
         router.push('/login');
         return;
       }
-
+  
       const response = await fetch(`${API_URL}/narrative/agents/instance/${instanceId}`, {
         method: 'PUT',
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(updates)
+        body: JSON.stringify(updates)  // Send the complete updates object
       });
-
+  
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.detail || 'Failed to update agent instance');
       }
-
+  
       await fetchAgents();
       toast({
         title: "Success",
         description: "Agent instance updated successfully"
       });
-
+  
     } catch (error) {
       console.error('Error updating agent instance:', error);
       toast({

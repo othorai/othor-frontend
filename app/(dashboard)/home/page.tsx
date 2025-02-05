@@ -30,7 +30,8 @@ export default function HomePage() {
   const router = useRouter();
   const { toast } = useToast();
   const { narratives, setNarratives, lastFetchDate, setLastFetchDate } = useNarratives();
-  const { selectedAgentId } = useAgents();
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
+  const { selectedAgentId, loadingAgents } = useAgents();
 
   // Format today's date
   const today = new Date();
@@ -45,6 +46,7 @@ export default function HomePage() {
   }, []);
 
   const fetchNarratives = async () => {
+    if (!initialLoadComplete) return;
     try {
       const date = new Date();
       const formattedDate = format(date, 'yyyy-MM-dd');
@@ -113,12 +115,18 @@ export default function HomePage() {
     }
   };
 
-  // Fetch narratives on mount and when selectedAgentId changes
   useEffect(() => {
-    setLoading(true); // Reset loading state
-    setError(null); // Reset error state
-    fetchNarratives();
-  }, [selectedAgentId]); // Add selectedAgentId as dependency
+    if (!loadingAgents) {
+      setInitialLoadComplete(true);
+    }
+  }, [loadingAgents]);
+
+  // Only fetch narratives when selectedAgentId changes and initial load is complete
+  useEffect(() => {
+    if (initialLoadComplete) {
+      fetchNarratives();
+    }
+  }, [selectedAgentId, initialLoadComplete]);
 
   useEffect(() => {
     const email = localStorage.getItem('savedEmail');
@@ -187,6 +195,26 @@ export default function HomePage() {
             <div className="text-center space-y-4">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto" />
               <p className="text-lg text-gray-600">Loading narratives...</p>
+            </div>
+          </div>
+        </div>
+        <div className="hidden xl:block w-80">
+          <div className="fixed top-[7rem] right-[3rem] w-80 h-[calc(100vh-8.5rem)] border-l">
+            <AgentsSidebar />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (loadingAgents || !initialLoadComplete) {
+    return (
+      <div className="flex h-full relative">
+        <div className="flex-1 p-6">
+          <div className="flex items-center justify-center min-h-[60vh]">
+            <div className="text-center space-y-4">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto" />
+              <p className="text-lg text-gray-600">Loading...</p>
             </div>
           </div>
         </div>

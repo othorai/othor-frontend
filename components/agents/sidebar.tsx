@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { CreateAgentDialog } from './create-agent-dialog';
+import { EditAgentDialog } from './edit-agent-dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { 
@@ -29,6 +30,8 @@ export function AgentsSidebar() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedInstanceId, setSelectedInstanceId] = useState<string>('');
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingInstanceId, setEditingInstanceId] = useState<string>('');
 
   const handleDelete = async (instanceId: string) => {
     setSelectedInstanceId(instanceId);
@@ -49,8 +52,8 @@ export function AgentsSidebar() {
   };
 
   const handleEdit = (instanceId: string) => {
-    // TODO: Implement edit functionality
-    console.log('Edit agent:', instanceId);
+    setEditingInstanceId(instanceId);
+    setEditDialogOpen(true);
   };
 
   if (loadingAgents) {
@@ -151,6 +154,12 @@ export function AgentsSidebar() {
         open={createDialogOpen}
         onOpenChange={setCreateDialogOpen}
         agents={agents}
+      />
+
+      <EditAgentDialog
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        instanceId={editingInstanceId}
       />
 
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
