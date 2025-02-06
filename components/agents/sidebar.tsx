@@ -8,6 +8,7 @@ import { CreateAgentDialog } from './create-agent-dialog';
 import { EditAgentDialog } from './edit-agent-dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import { API_URL } from '@/lib/config';
 import { 
   Dialog, 
   DialogContent, 
@@ -32,27 +33,44 @@ export function AgentsSidebar() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingInstanceId, setEditingInstanceId] = useState<string>('');
   const [isOrgAdmin, setIsOrgAdmin] = useState(false);
+  const [loadingRole, setLoadingRole] = useState(true);
 
   // Fetch user's organization role
   useEffect(() => {
     const fetchOrgRole = async () => {
       try {
+        setLoadingRole(true);
         const currentOrgId = localStorage.getItem('currentOrgId');
-        if (!currentOrgId) return;
+        if (!currentOrgId) {
+          setLoadingRole(false);
+          return;
+        }
 
         const token = localStorage.getItem('authToken');
-        const response = await fetch(`http://localhost:8004/authorization/org_role/${currentOrgId}`, {
+        if (!token) {
+          setLoadingRole(false);
+          return;
+        }
+
+        const response = await fetch(`${API_URL}/authorization/org_role/${currentOrgId}`, {
           headers: {
-            Authorization: `Bearer ${token}`,
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
           },
         });
 
         if (response.ok) {
           const data = await response.json();
           setIsOrgAdmin(data.role === 'admin');
+        } else {
+          console.error('Failed to fetch role:', response.status);
+          setIsOrgAdmin(false);
         }
       } catch (error) {
         console.error('Error fetching organization role:', error);
+        setIsOrgAdmin(false);
+      } finally {
+        setLoadingRole(false);
       }
     };
 
@@ -96,7 +114,7 @@ export function AgentsSidebar() {
     setEditDialogOpen(true);
   };
 
-  if (loadingAgents) {
+  if (loadingAgents || loadingRole) {
     return (
       <div className="h-full bg-white">
         <div className="p-4 border-b">

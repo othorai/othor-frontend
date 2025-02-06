@@ -1,9 +1,6 @@
 'use client';
 
 import { useEffect } from 'react';
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertCircle, RotateCcw } from 'lucide-react';
 
 export default function Error({
   error,
@@ -14,34 +11,41 @@ export default function Error({
 }) {
   useEffect(() => {
     // Log the error to an error reporting service
-    console.error(error);
+    if (process.env.NODE_ENV === 'production') {
+      console.error('Error occurred:', error);
+      // You could add error reporting service here
+    }
   }, [error]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <div className="flex justify-center mb-4">
-            <AlertCircle className="h-12 w-12 text-destructive" />
-          </div>
-          <CardTitle className="text-2xl text-center">Something went wrong!</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-center text-muted-foreground">
-            {error.message || "An unexpected error occurred."}
-          </p>
-          <div className="flex justify-center">
-            <Button
-              onClick={reset}
-              variant="outline"
-              className="space-x-2"
-            >
-              <RotateCcw className="h-4 w-4" />
-              <span>Try again</span>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+    <div className="flex min-h-screen items-center justify-center p-4">
+      <div className="rounded-lg bg-white p-8 shadow-md">
+        {process.env.NODE_ENV === 'production' ? (
+          <>
+            <h2 className="text-xl font-semibold text-gray-800">
+              Something went wrong
+            </h2>
+            <p className="mt-2 text-gray-600">
+              Please try again later
+            </p>
+          </>
+        ) : (
+          <>
+            <h2 className="text-xl font-semibold text-red-800">
+              Development Error:
+            </h2>
+            <pre className="mt-2 text-sm text-red-700">
+              {error.message}
+            </pre>
+          </>
+        )}
+        <button
+          onClick={reset}
+          className="mt-4 rounded bg-purple-600 px-4 py-2 text-white hover:bg-purple-700"
+        >
+          Try again
+        </button>
+      </div>
     </div>
   );
 }

@@ -43,11 +43,13 @@ export default function LoginPage() {
     if (isLoading) return;
 
     setIsLoading(true);
-    // Show the redirecting overlay immediately when login starts
     setIsRedirecting(true);
 
     try {
       await login(email, password, rememberMe);
+      
+      // Dispatch auth event after successful login
+      window.dispatchEvent(new Event('auth-state-changed'));
       
       toast({
         title: "Login successful",
@@ -61,7 +63,6 @@ export default function LoginPage() {
         title: "Login failed",
         description: error instanceof Error ? error.message : "An error occurred during login",
       });
-      // Only hide the redirecting overlay if there's an error
       setIsRedirecting(false);
     } finally {
       setIsLoading(false);

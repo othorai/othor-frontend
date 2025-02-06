@@ -57,61 +57,66 @@ export function AuthProvider({ children }: AuthProviderProps) {
     clearAuthState();
     setUser(null);
     setLoading(false);
+    window.dispatchEvent(new Event('auth-state-changed'));
   };
 
   const login = async (email: string, password: string, rememberMe: boolean = false): Promise<void> => {
-      try {
-        setLoading(true);
-        
-        const response = await fetch(`${API_URL}/authorization/login`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
-          body: `username=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`,
-        });
-    
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.detail || 'Login failed');
-        }
-    
-        const data = await response.json();
-        
-        if (!data.access_token) {
-          throw new Error('No access token received');
-        }
-
-        // Use the auth utility to save state
-        saveAuthState(data.access_token, email, rememberMe);
-    
-        // Fetch user data after successful login
-        const userResponse = await fetch(`${API_URL}/authorization/me`, {
-          headers: {
-            'Authorization': `Bearer ${data.access_token}`,
-          },
-        });
-    
-        if (!userResponse.ok) {
-          throw new Error('Failed to fetch user data');
-        }
-    
-        const userData = await userResponse.json();
-        setUser(userData);
-
-        // Only redirect if we have user data
-        if (userData) {
-          router.push('/home');
-        } else {
-          throw new Error('No user data received');
-        }
-    
-      } catch (error) {
-        handleLogout();
-        throw error;
-      } finally {
-        setLoading(false);
+    try {
+      setLoading(true);
+      
+      const response = await fetch(`${API_URL}/authorization/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `username=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`,
+      });
+  
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Login failed');
       }
+  
+      const data = await response.json();
+      
+      if (!data.access_token) {
+        throw new Error('No access token received');
+      }
+
+      // Save auth state
+      saveAuthState(data.access_token, email, rememberMe);
+  
+      // Fetch user data
+      const userResponse = await fetch(`${API_URL}/authorization/me`, {
+        headers: {
+          'Authorization': `Bearer ${data.access_token}`,
+        },
+      });
+  
+      if (!userResponse.ok) {
+        throw new Error('Failed to fetch user data');
+      }
+  
+      const userData = await userResponse.json();
+      setUser(userData);
+
+      // Dispatch auth event after successful login and user data fetch
+      console.log('Dispatching auth-state-changed event');
+      window.dispatchEvent(new Event('auth-state-changed'));
+
+      // Redirect if we have user data
+      if (userData) {
+        router.push('/home');
+      } else {
+        throw new Error('No user data received');
+      }
+  
+    } catch (error) {
+      handleLogout();
+      throw error;
+    } finally {
+      setLoading(false);
+    }
   };
 
   

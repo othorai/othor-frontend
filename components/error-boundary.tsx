@@ -1,14 +1,8 @@
-// components/error-boundary.tsx
-'use client';
-
-import { Component, ReactNode } from 'react';
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertCircle, RotateCcw } from 'lucide-react';
+// components/ErrorBoundary.tsx
+import React, { Component, ErrorInfo, ReactNode } from 'react';
 
 interface Props {
   children: ReactNode;
-  fallback?: ReactNode;
 }
 
 interface State {
@@ -16,7 +10,7 @@ interface State {
   error?: Error;
 }
 
-export class ErrorBoundary extends Component<Props, State> {
+class ErrorBoundary extends Component<Props, State> {
   public state: State = {
     hasError: false
   };
@@ -28,36 +22,31 @@ export class ErrorBoundary extends Component<Props, State> {
     };
   }
 
+  public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    // In production, you might want to log this to an error tracking service
+    if (process.env.NODE_ENV === 'production') {
+      // Log to your preferred error tracking service
+      console.error('Uncaught error:', error, errorInfo);
+    }
+  }
+
   public render() {
     if (this.state.hasError) {
-      if (this.props.fallback) {
-        return this.props.fallback;
-      }
-
-      return (
-        <Card className="w-full max-w-md mx-auto mt-8">
-          <CardHeader>
-            <div className="flex justify-center mb-4">
-              <AlertCircle className="h-12 w-12 text-destructive" />
-            </div>
-            <CardTitle className="text-2xl text-center">Something went wrong!</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-center text-muted-foreground">
-              {this.state.error?.message || "An unexpected error occurred."}
-            </p>
-            <div className="flex justify-center">
-              <Button
-                onClick={() => this.setState({ hasError: false })}
-                variant="outline"
-                className="space-x-2"
-              >
-                <RotateCcw className="h-4 w-4" />
-                <span>Try again</span>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+      // You can render any custom fallback UI
+      return process.env.NODE_ENV === 'production' ? (
+        <div className="flex items-center justify-center min-h-screen bg-gray-100">
+          <div className="p-8 bg-white rounded-lg shadow-md">
+            <h2 className="text-xl font-semibold text-gray-800">Something went wrong</h2>
+            <p className="mt-2 text-gray-600">Please try again later</p>
+          </div>
+        </div>
+      ) : (
+        <div className="p-4 bg-red-50 border border-red-200 rounded">
+          <h2 className="text-red-800">Development Error:</h2>
+          <pre className="mt-2 text-sm text-red-700">
+            {this.state.error?.message}
+          </pre>
+        </div>
       );
     }
 
@@ -65,3 +54,4 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 }
 
+export default ErrorBoundary;
